@@ -18,10 +18,39 @@ import {
 } from "lucide-react";
 import { FloatingNav } from "@/components/ui/floating-navbar";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
+import { useEffect } from "react";
+import ReviewCarousel from "@/components/ReviewCarousel";
 
 
 export default function Home() {
   const router = useRouter();
+  const { isSignedIn, isLoaded } = useAuth();
+
+  // Redirect to sign-in if not authenticated
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      router.push('/sign-in');
+    }
+  }, [isLoaded, isSignedIn, router]);
+
+  // Show loading while checking authentication
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[var(--color-beige)] via-[var(--color-mint)] to-[var(--color-yellow)]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[var(--color-tomato)] mx-auto"></div>
+          <p className="mt-4 text-[var(--color-deep-blue)] font-semibold">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render the page if not signed in
+  if (!isSignedIn) {
+    return null;
+  }
+
   const navItems = [
     { name: "Home", link: "/", icon: <HomeIcon /> },
     { name: "Book", link: "/book", icon: <BookIcon /> },
@@ -214,6 +243,13 @@ export default function Home() {
             Download WeDine App
             <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
+        </div>
+      </section>
+
+      {/* Review Carousel Section */}
+      <section className="py-16 px-4 bg-gradient-to-r from-[var(--color-beige)] to-[var(--color-mint)]">
+        <div className="max-w-7xl mx-auto">
+          <ReviewCarousel />
         </div>
       </section>
 

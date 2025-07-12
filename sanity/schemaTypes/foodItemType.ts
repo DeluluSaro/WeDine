@@ -8,7 +8,6 @@ export const foodItemType = defineType({
   fields: [
     defineField({ name: "foodId", type: "string", title: "Food ID", validation: Rule => Rule.required() }),
     defineField({ name: "foodName", type: "string", title: "Food Name", validation: Rule => Rule.required() }),
-    defineField({ name: "shopName", type: "string", title: "Shop Name", validation: Rule => Rule.required() }),
     defineField({ name: "quantity", type: "number", title: "Available Quantity", validation: Rule => Rule.required().min(0) }),
     defineField({ name: "price", type: "number", title: "Price", validation: Rule => Rule.required().min(0) }),
     // For UI display, optional
@@ -23,17 +22,108 @@ export const foodItemType = defineType({
           { title: "Snacks", value: "Snacks" },
           { title: "Breakfast", value: "Breakfast" },
           { title: "Lunch", value: "Lunch" },
+          { title: "Beverages", value: "Beverages" },
+          { title: "Juices", value: "Juices" },
         ],
       },
       validation: Rule => Rule.required(),
     }),
-    // For relational integrity, keep reference
-    defineField({ name: "categoryRef", type: "reference", to: [{ type: "category" }], title: "Category Reference" }),
     // For asset management, recommended
     defineField({ name: "image", type: "image", title: "Image", options: { hotspot: true } }),
-    // Add latitude and longitude fields to each shop/food item in your Sanity dataset.
-    defineField({ name: "latitude", type: "number", title: "Latitude" }),
-    defineField({ name: "longitude", type: "number", title: "Longitude" }),
+    // Add shopRef
+    defineField({
+      name: "shopRef",
+      type: "reference",
+      to: [{ type: "shop" }],
+      title: "Shop",
+      validation: Rule => Rule.required(),
+    }),
+    // Additional fields for enhanced UI
+    defineField({ 
+      name: "description", 
+      type: "text", 
+      title: "Description",
+      description: "Detailed description of the food item"
+    }),
+    defineField({ 
+      name: "ingredients", 
+      type: "array", 
+      title: "Ingredients",
+      of: [{ type: "string" }],
+      description: "List of ingredients used in this dish"
+    }),
+    defineField({ 
+      name: "allergens", 
+      type: "array", 
+      title: "Allergens",
+      of: [{ type: "string" }],
+      description: "List of allergens present in this dish"
+    }),
+    defineField({ 
+      name: "preparationTime", 
+      type: "number", 
+      title: "Preparation Time (minutes)",
+      description: "Time required to prepare this dish"
+    }),
+    defineField({ 
+      name: "rating", 
+      type: "number", 
+      title: "Rating",
+      description: "Average rating (1-5 stars)",
+      validation: Rule => Rule.min(1).max(5)
+    }),
+    defineField({ 
+      name: "reviews", 
+      type: "number", 
+      title: "Number of Reviews",
+      description: "Total number of reviews"
+    }),
+    defineField({ 
+      name: "spicyLevel", 
+      type: "number", 
+      title: "Spicy Level",
+      description: "Spiciness level (0-5)",
+      validation: Rule => Rule.min(0).max(5)
+    }),
+    defineField({ 
+      name: "isVegetarian", 
+      type: "boolean", 
+      title: "Vegetarian",
+      description: "Is this dish vegetarian?",
+      initialValue: false
+    }),
+    defineField({ 
+      name: "isVegan", 
+      type: "boolean", 
+      title: "Vegan",
+      description: "Is this dish vegan?",
+      initialValue: false
+    }),
+    // Nutrition information
+    defineField({ 
+      name: "calories", 
+      type: "number", 
+      title: "Calories",
+      description: "Calories per serving"
+    }),
+    defineField({ 
+      name: "protein", 
+      type: "number", 
+      title: "Protein (g)",
+      description: "Protein content in grams"
+    }),
+    defineField({ 
+      name: "carbs", 
+      type: "number", 
+      title: "Carbohydrates (g)",
+      description: "Carbohydrate content in grams"
+    }),
+    defineField({ 
+      name: "fat", 
+      type: "number", 
+      title: "Fat (g)",
+      description: "Fat content in grams"
+    }),
   ],
 });
 
