@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   motion,
@@ -59,12 +59,12 @@ export const FloatingNav = ({
   });
 
   // Check if user's email domain is allowed
-  const isAllowedDomain = () => {
+  const isAllowedDomain = useCallback(() => {
     if (!user?.emailAddresses?.[0]?.emailAddress) return false;
     const email = user.emailAddresses[0].emailAddress;
     const domain = email.split('@')[1];
     return ALLOWED_DOMAINS.includes(domain);
-  };
+  }, [user]);
 
   // Show success toast when user signs in with allowed domain
   useEffect(() => {
@@ -79,7 +79,7 @@ export const FloatingNav = ({
       });
       setHasShownSuccessToast(true);
     }
-  }, [isSignedIn, user, hasShownSuccessToast]);
+  }, [isSignedIn, user, hasShownSuccessToast, isAllowedDomain]);
 
   // Auto-delete account if domain is not allowed
   useEffect(() => {
@@ -118,7 +118,7 @@ export const FloatingNav = ({
       };
       deleteAccount();
     }
-  }, [isSignedIn, user, signOut]);
+  }, [isSignedIn, user, signOut, isAllowedDomain]);
 
   return (
     <AnimatePresence mode="wait">

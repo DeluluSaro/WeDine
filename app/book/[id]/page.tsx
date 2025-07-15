@@ -27,6 +27,7 @@ import {
 import ReviewSection from "@/components/ReviewSection";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useCart, CartItem } from "@/components/CartContext";
+import Image from 'next/image';
 
 interface FoodItem {
   _id: string;
@@ -244,13 +245,15 @@ const FoodDetailPage = () => {
           <div className="space-y-6">
             {/* Main Image */}
             <div className="relative group">
-      <img
+      <Image
         src={food.image?.asset?.url || food.imageUrl || "/placeholder.jpg"}
         alt={food.foodName}
-                className={`w-full h-96 lg:h-[500px] object-cover rounded-3xl shadow-2xl transition-all duration-500 ${
-                  isOutOfStock ? 'grayscale brightness-75' : 'group-hover:scale-105'
-                }`}
-              />
+        width={800}
+        height={500}
+        className={`w-full h-96 lg:h-[500px] object-cover rounded-3xl shadow-2xl transition-all duration-500 ${
+          isOutOfStock ? 'grayscale brightness-75' : 'group-hover:scale-105'
+        }`}
+      />
               
               {/* Image Overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-3xl" />

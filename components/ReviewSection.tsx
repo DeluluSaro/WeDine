@@ -59,7 +59,7 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ shopId, shopName }) => {
   const [votingReviews, setVotingReviews] = useState<Set<string>>(new Set());
 
   // Infinite scroll refs
-  const observer = useRef<IntersectionObserver>();
+  const observer = useRef<IntersectionObserver | null>(null);
 
   // Fetch reviews with pagination
   const fetchReviews = useCallback(async (pageNum = 1, append = false) => {

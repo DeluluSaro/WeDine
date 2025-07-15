@@ -63,7 +63,7 @@ export default function TestReviewsPage() {
               <h4 className="font-semibold text-yellow-700 mb-2">Shop-Specific Reviews</h4>
               <p className="text-gray-600">
                 <code className="bg-gray-100 px-2 py-1 rounded text-sm">
-                  &lt;ReviewCarousel shopId="your-shop-id" /&gt;
+                  &lt;ReviewCarousel shopId=&quot;your-shop-id&quot; /&gt;
                 </code>
               </p>
             </div>

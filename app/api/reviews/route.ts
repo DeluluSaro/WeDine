@@ -197,7 +197,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate average rating and distribution
     const averageRating = allReviews.length > 0 
-      ? allReviews.reduce((sum: number, review: any) => sum + review.rating, 0) / allReviews.length 
+      ? allReviews.reduce((sum: number, review: unknown) => sum + (review as { rating: number }).rating, 0) / allReviews.length 
       : 0;
 
     const response = {
@@ -207,11 +207,11 @@ export async function GET(request: NextRequest) {
         totalReviews,
         averageRating: Math.round(averageRating * 10) / 10, // Round to 1 decimal
         ratingDistribution: {
-          5: allReviews.filter((r: any) => r.rating === 5).length,
-          4: allReviews.filter((r: any) => r.rating === 4).length,
-          3: allReviews.filter((r: any) => r.rating === 3).length,
-          2: allReviews.filter((r: any) => r.rating === 2).length,
-          1: allReviews.filter((r: any) => r.rating === 1).length,
+          5: allReviews.filter((r: unknown) => (r as { rating: number }).rating === 5).length,
+          4: allReviews.filter((r: unknown) => (r as { rating: number }).rating === 4).length,
+          3: allReviews.filter((r: unknown) => (r as { rating: number }).rating === 3).length,
+          2: allReviews.filter((r: unknown) => (r as { rating: number }).rating === 2).length,
+          1: allReviews.filter((r: unknown) => (r as { rating: number }).rating === 1).length,
         }
       },
       pagination: {

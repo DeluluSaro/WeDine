@@ -3,7 +3,8 @@ import React, { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { FloatingNav } from "@/components/ui/floating-navbar";
 import { ShoppingCart } from "lucide-react";
-import { CartProvider, useCart } from '../../components/CartContext';
+import { useCart } from '../../components/CartContext';
+import Image from 'next/image';
 
 interface OrderItem {
   foodName: string;
@@ -92,9 +93,11 @@ const CartPage = () => {
             <div className="space-y-6">
               {cartItems.map((item) => (
                 <div key={item._id} className="flex items-center gap-4 bg-white/70 rounded-xl shadow p-4 border border-yellow-100">
-                  <img
+                  <Image
                     src={item.foodId?.image?.asset?.url || item.foodId?.imageUrl || "/placeholder.jpg"}
                     alt={item.foodId?.foodName}
+                    width={80}
+                    height={80}
                     className="w-20 h-20 object-cover rounded-xl border border-yellow-200"
                   />
                   <div className="flex-1">

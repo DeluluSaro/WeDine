@@ -6,6 +6,7 @@ import { BookIcon, HomeIcon, InfoIcon, MailIcon, Filter as FilterIcon, X as Clos
 import { FloatingNav } from "@/components/ui/floating-navbar";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter, usePathname } from "next/navigation";
+import Image from 'next/image';
 
 // FoodItem type for TypeScript
 interface FoodItem {
@@ -455,10 +456,12 @@ const BookPage = () => {
                   }`}
                   style={{ animationDelay: `${index * 0.1}s` }}>
                 <div className="relative">
-                  <img
+                  <Image
                     src={item.image?.asset?.url || item.imageUrl || "/placeholder.jpg"}
                     alt={item.foodName}
-                      className={`w-full h-56 sm:h-64 object-cover object-center rounded-t-3xl transition duration-500 ${
+                    width={400}
+                    height={256}
+                    className={`w-full h-56 sm:h-64 object-cover object-center rounded-t-3xl transition duration-500 ${
                         isOutOfStock 
                           ? 'grayscale brightness-75' 
                           : 'group-hover:brightness-110 group-hover:scale-110'

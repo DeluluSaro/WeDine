@@ -1,3 +1,5 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import { SignOutButton } from "@clerk/nextjs";
 import { ArrowLeft, Shield } from "lucide-react";

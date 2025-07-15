@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log("Request body:", body);
     
-    const { foodItem, userEmail } = body;
+    const { foodItem } = body;
 
     if (!foodItem) {
       console.error("Missing foodItem in request");

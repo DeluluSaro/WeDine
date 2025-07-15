@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { client, writeClient } from '@/sanity/lib/client';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     console.log("=== TEST SANITY API ===");
     
