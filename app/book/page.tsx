@@ -5,7 +5,7 @@ import { client } from "@/sanity/lib/client";
 import { BookIcon, HomeIcon, InfoIcon, MailIcon, Filter as FilterIcon, X as CloseIcon, PhoneIcon } from "lucide-react";
 import { FloatingNav } from "@/components/ui/floating-navbar";
 import { useAuth, useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 // FoodItem type for TypeScript
 interface FoodItem {
@@ -55,6 +55,7 @@ const BookPage = () => {
   const router = useRouter();
   const { isSignedIn, isLoaded } = useAuth();
   const { user } = useUser();
+  const pathname = usePathname();
   const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [selectedPrices, setSelectedPrices] = useState<string[]>([]);
@@ -320,9 +321,14 @@ const BookPage = () => {
     return null;
   }
 
+  // Determine if badges should be shown
+  const showBadges = isSignedIn && (pathname === "/book" || pathname.startsWith("/book/"));
+  const eWalletAmount = 500; // dummy value
+  const cartCount = 2; // dummy value for now
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-200 via-yellow-100 to-beige-100 p-2 sm:p-8 flex flex-col md:flex-row">
-      <FloatingNav navItems={navItems} />
+      <FloatingNav navItems={navItems} showBadges={showBadges} eWalletAmount={eWalletAmount} cartCount={cartCount} />
       {/* Sidebar (desktop) */}
       <aside className="w-72 mr-10 hidden md:block mt-32">
         {FilterContent}

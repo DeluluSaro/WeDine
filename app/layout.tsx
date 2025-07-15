@@ -1,12 +1,11 @@
-import { Outfit } from "next/font/google";
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
-import { FloatingNav } from "@/components/ui/floating-navbar";
-import { History, HomeIcon, MessageCircle, User } from "lucide-react";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "sonner";
+import { CartProvider } from "@/components/CartContext";
 
-const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
   title: "WeDine - Smart Campus Dining",
@@ -39,10 +38,12 @@ export default function RootLayout({
         },
       }}
     >
-      <html lang="en" className={outfit.variable}>
+      <html lang="en" className={inter.variable}>
         <body className="font-poppins antialiased">
           
-          {children}
+          <CartProvider>
+            {children}
+          </CartProvider>
           <Toaster 
             position="top-right"
             richColors

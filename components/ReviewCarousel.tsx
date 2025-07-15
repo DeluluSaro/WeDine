@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { InfiniteMovingCards } from "@/components/ui/infinite-moving-cards";
-import { Star, User, Calendar } from "lucide-react";
+import React, { useEffect, useState, useCallback } from "react";
+import { Star, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Review {
@@ -28,11 +27,7 @@ export default function ReviewCarousel({ shopId }: ReviewCarouselProps) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchReviews();
-  }, [shopId]);
-
-  const fetchReviews = async () => {
+  const fetchReviews = useCallback(async () => {
     try {
       setLoading(true);
       const url = shopId 
@@ -50,32 +45,11 @@ export default function ReviewCarousel({ shopId }: ReviewCarouselProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [shopId]);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
-  const renderStars = (rating: number) => {
-    return (
-      <div className="flex gap-1">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Star
-            key={star}
-            className={`w-4 h-4 ${
-              star <= rating
-                ? 'fill-yellow-400 text-yellow-400'
-                : 'text-gray-300'
-            }`}
-          />
-        ))}
-      </div>
-    );
-  };
+  useEffect(() => {
+    fetchReviews();
+  }, [fetchReviews]);
 
   // Transform reviews to the format expected by InfiniteMovingCards
   const transformedReviews = reviews.map((review) => ({
@@ -148,13 +122,37 @@ export const ReviewInfiniteMovingCards = ({
 }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const scrollerRef = React.useRef<HTMLUListElement>(null);
-
-  useEffect(() => {
-    addAnimation();
-  }, []);
   const [start, setStart] = useState(false);
   
-  function addAnimation() {
+  const getDirection = useCallback(() => {
+    if (containerRef.current) {
+      if (direction === "left") {
+        containerRef.current.style.setProperty(
+          "--animation-direction",
+          "forwards",
+        );
+      } else {
+        containerRef.current.style.setProperty(
+          "--animation-direction",
+          "reverse",
+        );
+      }
+    }
+  }, [direction]);
+  
+  const getSpeed = useCallback(() => {
+    if (containerRef.current) {
+      if (speed === "fast") {
+        containerRef.current.style.setProperty("--animation-duration", "20s");
+      } else if (speed === "normal") {
+        containerRef.current.style.setProperty("--animation-duration", "40s");
+      } else {
+        containerRef.current.style.setProperty("--animation-duration", "80s");
+      }
+    }
+  }, [speed]);
+  
+  const addAnimation = useCallback(() => {
     if (containerRef.current && scrollerRef.current) {
       const scrollerContent = Array.from(scrollerRef.current.children);
 
@@ -169,35 +167,11 @@ export const ReviewInfiniteMovingCards = ({
       getSpeed();
       setStart(true);
     }
-  }
-  
-  const getDirection = () => {
-    if (containerRef.current) {
-      if (direction === "left") {
-        containerRef.current.style.setProperty(
-          "--animation-direction",
-          "forwards",
-        );
-      } else {
-        containerRef.current.style.setProperty(
-          "--animation-direction",
-          "reverse",
-        );
-      }
-    }
-  };
-  
-  const getSpeed = () => {
-    if (containerRef.current) {
-      if (speed === "fast") {
-        containerRef.current.style.setProperty("--animation-duration", "20s");
-      } else if (speed === "normal") {
-        containerRef.current.style.setProperty("--animation-duration", "40s");
-      } else {
-        containerRef.current.style.setProperty("--animation-duration", "80s");
-      }
-    }
-  };
+  }, [getDirection, getSpeed]);
+
+  useEffect(() => {
+    addAnimation();
+  }, [addAnimation]);
 
   const renderStars = (rating: number) => {
     return (
@@ -250,7 +224,7 @@ export const ReviewInfiniteMovingCards = ({
                 {renderStars(item.rating)}
               </div>
               <span className="relative z-20 text-sm leading-[1.6] font-normal text-gray-700 line-clamp-4">
-                "{item.quote}"
+                &ldquo;{item.quote}&rdquo;
               </span>
               <div className="relative z-20 mt-4 flex flex-row items-center justify-between">
                 <span className="flex flex-col gap-1">

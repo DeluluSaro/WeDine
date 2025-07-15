@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   motion,
   AnimatePresence,
@@ -30,15 +31,22 @@ const ALLOWED_DOMAINS = [
 export const FloatingNav = ({
   navItems,
   className,
+  showBadges = false,
+  eWalletAmount = 500,
+  cartCount = 0,
 }: {
   navItems: NavItem[];
   className?: string;
+  showBadges?: boolean;
+  eWalletAmount?: number | string;
+  cartCount?: number;
 }) => {
   const { scrollYProgress } = useScroll();
   const { user, isSignedIn } = useUser();
   const { signOut } = useClerk();
   const [visible, setVisible] = useState(false);
   const [hasShownSuccessToast, setHasShownSuccessToast] = useState(false);
+  const router = useRouter();
 
   useMotionValueEvent(scrollYProgress, "change", (current) => {
     if (typeof current === "number") {
@@ -143,7 +151,29 @@ export const FloatingNav = ({
             <span className="hidden sm:block text-sm">{navItem.name}</span>
           </a>
         ))}
-        
+
+        {/* E-wallet and Cart Badges */}
+        {isSignedIn && isAllowedDomain() && showBadges && (
+          <div className="flex items-center gap-4 ml-4">
+            {/* E-wallet badge */}
+            <div className="flex items-center px-3 py-1 rounded-full bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-500 shadow-lg border border-yellow-200 text-yellow-900 font-bold text-sm backdrop-blur-md">
+              <svg className="w-5 h-5 mr-1 text-yellow-700" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M2 7a2 2 0 012-2h16a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V7z"/><path d="M16 11a2 2 0 110 4 2 2 0 010-4z"/></svg>
+              ₹{eWalletAmount}
+            </div>
+            {/* Cart badge */}
+            <div className="relative flex items-center">
+              <button
+                className="flex items-center px-3 py-1 rounded-full bg-gradient-to-r from-blue-400 via-blue-300 to-blue-500 shadow-lg border border-blue-200 text-white font-bold text-sm backdrop-blur-md hover:scale-105 transition-transform"
+                onClick={() => router.push('/cart')}
+              >
+                <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4"/><circle cx="7" cy="21" r="1"/><circle cx="17" cy="21" r="1"/></svg>
+                Cart
+                <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold bg-white text-blue-600 border border-blue-300 shadow-sm">{cartCount}</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {isSignedIn && isAllowedDomain() ? (
           <UserButton 
             appearance={{

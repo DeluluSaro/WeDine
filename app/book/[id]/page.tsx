@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, usePathname } from "next/navigation";
 import { client } from "@/sanity/lib/client";
 import { FloatingNav } from "@/components/ui/floating-navbar";
 import { 
@@ -21,10 +21,12 @@ import {
   Share2,
   Truck,
   Shield,
-  Award
+  Award,
+  CheckCircle
 } from "lucide-react";
 import ReviewSection from "@/components/ReviewSection";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth, useUser } from "@clerk/nextjs";
+import { useCart, CartItem } from "@/components/CartContext";
 
 interface FoodItem {
   _id: string;
@@ -62,12 +64,17 @@ const FoodDetailPage = () => {
   const { id } = useParams();
   const router = useRouter();
   const { isSignedIn, isLoaded } = useAuth();
+  const { user } = useUser();
+  const pathname = usePathname();
   
   const [food, setFood] = useState<FoodItem | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
   const [showNutrition, setShowNutrition] = useState(false);
+  const [addToCartState, setAddToCartState] = useState<'idle' | 'adding' | 'added'>("idle");
+  const { cartItems, addToCart } = useCart();
+  const cartCount = cartItems.reduce((sum: number, item: CartItem) => sum + (item.quantity || 0), 0);
 
   useEffect(() => {
     if (!id) return;
@@ -129,15 +136,32 @@ const FoodDetailPage = () => {
   };
 
   const handleAddToCart = () => {
-    // TODO: Implement cart functionality
-    console.log(`Added ${quantity} ${food?.foodName} to cart`);
-    // Show success message
+    if (!user || !food) return;
+    setAddToCartState('adding');
+    addToCart({
+      _id: `${food._id}-${Date.now()}`,
+      quantity,
+      price: food.price || 0,
+      foodId: {
+        _id: food._id,
+        foodName: food.foodName,
+        imageUrl: food.imageUrl,
+        image: food.image,
+        shopRef: { shopName: food.shopRef?.shopName },
+      },
+    });
+    setAddToCartState('added');
+    setTimeout(() => setAddToCartState('idle'), 1200);
   };
 
   const handleBuyNow = () => {
     // TODO: Implement direct purchase
     console.log(`Buying ${quantity} ${food?.foodName} now`);
     // Navigate to checkout
+  };
+
+  const handleReviewCart = () => {
+    router.push('/cart');
   };
 
   const navItems = [
@@ -162,6 +186,10 @@ const FoodDetailPage = () => {
     return null;
   }
 
+  // Determine if badges should be shown
+  const showBadges = isSignedIn && (pathname === "/book" || pathname.startsWith("/book/"));
+  const eWalletAmount = 500; // dummy value
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-yellow-200 via-yellow-100 to-beige-100">
@@ -179,7 +207,7 @@ const FoodDetailPage = () => {
         <div className="text-center">
           <div className="text-6xl mb-4">🍽️</div>
           <h1 className="text-2xl font-bold text-yellow-800 mb-2">Food Not Found</h1>
-          <p className="text-yellow-700 mb-4">This delicious item might have been removed or doesn't exist.</p>
+          <p className="text-yellow-700 mb-4">This delicious item might have been removed or doesn&apos;t exist.</p>
           <button 
             onClick={() => router.push('/book')}
             className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 font-bold py-3 px-6 rounded-full hover:from-yellow-500 hover:to-yellow-600 transition-all duration-200 shadow-lg"
@@ -196,7 +224,7 @@ const FoodDetailPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-200 via-yellow-100 to-beige-100">
-        <FloatingNav navItems={navItems} />
+        <FloatingNav navItems={navItems} showBadges={showBadges} eWalletAmount={eWalletAmount} cartCount={cartCount} />
       
       {/* Back Button */}
       <div className="pt-24 px-4 sm:px-8">
@@ -429,7 +457,9 @@ const FoodDetailPage = () => {
                   <div className="text-2xl font-bold text-yellow-800">₹{food.price}</div>
                   <div className="text-sm text-yellow-600">
                     {food.quantity} available
+
                   </div>
+                  
                 </div>
                 
                 {!isOutOfStock && (
@@ -470,12 +500,30 @@ const FoodDetailPage = () => {
               <div className="space-y-4">
                 <button
                   onClick={handleAddToCart}
-                  className="w-full bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 font-bold py-4 px-6 rounded-2xl hover:from-yellow-500 hover:to-yellow-600 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                  aria-label="Add to Cart"
+                  disabled={addToCartState === 'adding' || addToCartState === 'added'}
+                  className={`w-full relative bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 font-bold py-4 px-6 rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-all duration-200
+                    hover:from-yellow-500 hover:to-yellow-600 hover:scale-105 active:scale-95
+                    ${addToCartState === 'adding' || addToCartState === 'added' ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
-                  <ShoppingCart className="w-6 h-6" />
-                  Add to Cart - ₹{totalPrice}
+                  {addToCartState === 'added' ? (
+                    <>
+                      <CheckCircle className="w-6 h-6 text-green-600 animate-bounce" />
+                      <span className="text-green-700 font-bold">Added!</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingCart className="w-6 h-6" />
+                      Add to Cart - ₹{totalPrice}
+                    </>
+                  )}
                 </button>
-                
+                <button
+                  onClick={handleReviewCart}
+                  className="w-full bg-gradient-to-r from-blue-400 to-blue-500 text-white font-bold py-4 px-6 rounded-2xl hover:from-blue-500 hover:to-blue-600 transition-all duration-200 shadow-lg hover:shadow-xl"
+                >
+                  Review Cart
+                </button>
                 <button
                   onClick={handleBuyNow}
                   className="w-full bg-gradient-to-r from-green-400 to-green-500 text-white font-bold py-4 px-6 rounded-2xl hover:from-green-500 hover:to-green-600 transition-all duration-200 shadow-lg hover:shadow-xl"

@@ -1,12 +1,27 @@
 // lib/notifications.ts
 import twilio from 'twilio';
 
+interface NotificationData {
+  shopName: string;
+  foodName: string;
+  quantity: number;
+  ownerMobile?: string;
+  ownerEmail?: string;
+}
+
+interface SMSResult {
+  success: boolean;
+  message: string;
+  sid?: string;
+  error?: string;
+}
+
 // SMS notification function using Twilio
-export async function sendSMSNotification(
+async function sendSMSNotification(
   ownerMobile: string,
   foodName: string,
   shopName: string
-) {
+): Promise<SMSResult> {
   try {
     // Initialize Twilio client with environment variables
     const client = twilio(
@@ -25,31 +40,23 @@ export async function sendSMSNotification(
     return { success: true, message: "SMS notification sent", sid: message.sid };
   } catch (error) {
     console.error("SMS notification failed:", error);
-    return { success: false, message: "SMS notification failed", error: error instanceof Error ? error.message : 'Unknown error' };
+    return { 
+      success: false, 
+      message: "SMS notification failed", 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
   }
 }
 
-// Main notification function - SMS only
-export async function sendStockOverNotifications(
-  foodItem: {
-    foodName: string;
-    shopRef?: {
-      shopName: string;
-      ownerMobile?: string;
-      ownerEmail?: string;
-    };
-  },
-  userEmail?: string
-) {
+export const sendStockOverNotification = async (data: NotificationData) => {
   console.log("=== NOTIFICATION FUNCTION DEBUG ===");
-  console.log("Food Item:", foodItem);
-  console.log("Shop Ref:", foodItem.shopRef);
-  console.log("User Email:", userEmail);
+  console.log("Food Item:", data);
+  console.log("Shop Ref:", data.shopName);
+  console.log("User Email:", data.ownerEmail);
 
-  const { foodName, shopRef } = foodItem;
-  const shopName = shopRef?.shopName || "Unknown Shop";
-  const ownerMobile = shopRef?.ownerMobile;
-  const ownerEmail = shopRef?.ownerEmail;
+  const { foodName, shopName } = data;
+  const ownerMobile = data.ownerMobile;
+  const ownerEmail = data.ownerEmail;
 
   console.log("Extracted data:");
   console.log("- Food Name:", foodName);
@@ -68,7 +75,7 @@ export async function sendStockOverNotifications(
   }
 
   const results = {
-    sms: null as any,
+    sms: null as SMSResult | null,
     success: false,
     message: "",
     details: {}

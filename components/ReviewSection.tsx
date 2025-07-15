@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Star, Send, ThumbsUp, User, Calendar, CheckCircle, Loader2, ChevronUp, MessageCircle, Heart, Share2, Filter } from 'lucide-react';
+import { Star, Send, ThumbsUp, User, Calendar, CheckCircle, Loader2, ChevronUp, MessageCircle, Share2, Filter } from 'lucide-react';
 import { useUser } from '@clerk/nextjs';
 
 interface Review {

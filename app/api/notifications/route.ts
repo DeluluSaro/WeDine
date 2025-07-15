@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendStockOverNotifications } from '@/lib/notifications';
+import { sendStockOverNotification } from '@/lib/notifications';
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,8 +18,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("Calling sendStockOverNotifications...");
-    const result = await sendStockOverNotifications(foodItem, userEmail);
+    // Transform the data to match the expected NotificationData interface
+    const notificationData = {
+      shopName: foodItem.shopRef?.shopName || 'Unknown Shop',
+      foodName: foodItem.foodName || foodItem.name || 'Unknown Food',
+      quantity: foodItem.quantity || 0,
+      ownerMobile: foodItem.shopRef?.ownerMobile,
+      ownerEmail: foodItem.shopRef?.ownerEmail
+    };
+
+    console.log("Calling sendStockOverNotification...");
+    console.log("Notification data:", notificationData);
+    
+    const result = await sendStockOverNotification(notificationData);
     console.log("Notification result:", result);
 
     if (result.success) {
