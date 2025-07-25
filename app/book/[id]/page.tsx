@@ -28,6 +28,8 @@ import ReviewSection from "@/components/ReviewSection";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useCart, CartItem } from "@/components/CartContext";
 import Image from 'next/image';
+import OrderPaymentModal from "@/components/OrderPaymentModal";
+import { useRazorpay } from '@/components/razorpayLoader';
 
 interface FoodItem {
   _id: string;
@@ -76,6 +78,9 @@ const FoodDetailPage = () => {
   const [addToCartState, setAddToCartState] = useState<'idle' | 'adding' | 'added'>("idle");
   const { cartItems, addToCart } = useCart();
   const cartCount = cartItems.reduce((sum: number, item: CartItem) => sum + (item.quantity || 0), 0);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [buyError, setBuyError] = useState<string | null>(null);
+  const razorpayCheckout = useRazorpay();
 
   useEffect(() => {
     if (!id) return;
@@ -156,9 +161,150 @@ const FoodDetailPage = () => {
   };
 
   const handleBuyNow = () => {
-    // TODO: Implement direct purchase
-    console.log(`Buying ${quantity} ${food?.foodName} now`);
-    // Navigate to checkout
+    setShowPaymentModal(true);
+  };
+
+  // Helper for modal order item
+  const getOrderItemForModal = () => food ? [{ foodName: food.foodName, quantity, price: food.price || 0 }] : [];
+
+  // Add RazorpayPaymentResponse type
+  interface RazorpayPaymentResponse {
+    razorpay_payment_id: string;
+    razorpay_order_id: string;
+    razorpay_signature: string;
+  }
+
+  // Razorpay payment handler for modal
+  const handleOnlinePayment = async () => {
+    if (!user || !food) return;
+    if (!process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
+      setBuyError('Razorpay Key ID is missing. Please set NEXT_PUBLIC_RAZORPAY_KEY_ID in your .env.local file.');
+      return;
+    }
+    console.log('Razorpay Key (frontend):', process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID);
+    // 1. Create order(s) in backend
+    const orderRes = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: user.id,
+        userEmail: user.primaryEmailAddress?.emailAddress,
+        items: [{
+          _id: `${food._id}-${Date.now()}`,
+          quantity,
+          price: food.price || 0,
+          foodId: {
+            _id: food._id,
+            foodName: food.foodName,
+            imageUrl: food.imageUrl,
+            image: food.image,
+            shopRef: { shopName: food.shopRef?.shopName },
+          },
+        }],
+        total: (food.price || 0) * quantity,
+        createdAt: new Date().toISOString(),
+        paymentMethod: 'online',
+      }),
+    });
+    const orderData = await orderRes.json();
+    if (!orderRes.ok || !orderData.orderIds) {
+      setBuyError(orderData.error || 'Failed to create order.');
+      return;
+    }
+    // 2. Create Razorpay order
+    const razorpayOrderRes = await fetch('/api/create-razorpay-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amount: (food.price || 0) * quantity,
+        receipt: orderData.orderIds[0],
+      }),
+    });
+    const razorpayOrderData = await razorpayOrderRes.json();
+    if (!razorpayOrderRes.ok || !razorpayOrderData.order) {
+      setBuyError(razorpayOrderData.error || 'Failed to create Razorpay order.');
+      return;
+    }
+    // 3. Open Razorpay Checkout
+    const options = {
+      key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+      amount: razorpayOrderData.order.amount,
+      currency: razorpayOrderData.order.currency,
+      name: 'WeDine',
+      description: 'Order Payment',
+      order_id: razorpayOrderData.order.id,
+      handler: async function (response: RazorpayPaymentResponse) {
+        // 4. On payment success, verify and update order
+        const verifyRes = await fetch('/api/verify-razorpay-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId: orderData.orderIds[0],
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_signature: response.razorpay_signature,
+          }),
+        });
+        const verifyData = await verifyRes.json();
+        if (verifyRes.ok && verifyData.success) {
+          window.location.reload();
+        } else {
+          setBuyError(verifyData.error || 'Payment verification failed.');
+        }
+      },
+      prefill: {
+        email: user.primaryEmailAddress?.emailAddress,
+      },
+      theme: { color: '#F59E42' },
+    };
+    const result = await razorpayCheckout(options);
+    if (result === false) {
+      setBuyError('Failed to open Razorpay payment window. Please check your internet connection and Razorpay Key ID.');
+    }
+  };
+
+  // Place order after modal confirm
+  const handleModalConfirm = (paymentMethod: 'cod' | 'online') => {
+    if (paymentMethod === 'cod') {
+      setShowPaymentModal(false);
+      setBuyError(null);
+      if (!user || !food) {
+        setBuyError("User or food not found. Please try again.");
+        return;
+      }
+      fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          userEmail: user.primaryEmailAddress?.emailAddress,
+          items: [{
+            _id: `${food._id}-${Date.now()}`,
+            quantity,
+            price: food.price || 0,
+            foodId: {
+              _id: food._id,
+              foodName: food.foodName,
+              imageUrl: food.imageUrl,
+              image: food.image,
+              shopRef: { shopName: food.shopRef?.shopName },
+            },
+          }],
+          total: (food.price || 0) * quantity,
+          createdAt: new Date().toISOString(),
+          paymentMethod,
+        }),
+      }).then(async (res) => {
+        if (!res.ok) {
+          const data = await res.json();
+          setBuyError(data.error || "Failed to place order.");
+          return;
+        }
+        // Optionally: show success, redirect, etc.
+      }).catch(() => {
+        setBuyError("Failed to place order. Please try again.");
+      });
+    }
   };
 
   const handleReviewCart = () => {
@@ -225,6 +371,14 @@ const FoodDetailPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-200 via-yellow-100 to-beige-100">
+      <OrderPaymentModal
+        open={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onConfirm={handleModalConfirm}
+        items={getOrderItemForModal()}
+        totalPrice={(food?.price || 0) * quantity}
+        onOnlinePayment={handleOnlinePayment}
+      />
         <FloatingNav navItems={navItems} showBadges={showBadges} eWalletAmount={eWalletAmount} cartCount={cartCount} />
       
       {/* Back Button */}
@@ -527,12 +681,19 @@ const FoodDetailPage = () => {
                 >
                   Review Cart
                 </button>
-                <button
-                  onClick={handleBuyNow}
-                  className="w-full bg-gradient-to-r from-green-400 to-green-500 text-white font-bold py-4 px-6 rounded-2xl hover:from-green-500 hover:to-green-600 transition-all duration-200 shadow-lg hover:shadow-xl"
-                >
-                  Buy Now - ₹{totalPrice}
-                </button>
+                <div className="space-y-4">
+                  {buyError && (
+                    <div className="mb-4 p-3 rounded-xl bg-red-100 text-red-700 font-semibold text-center border border-red-300">
+                      {buyError}
+                    </div>
+                  )}
+                  <button
+                    onClick={handleBuyNow}
+                    className="w-full bg-gradient-to-r from-green-400 to-green-500 text-white font-bold py-4 px-6 rounded-2xl hover:from-green-500 hover:to-green-600 transition-all duration-200 shadow-lg hover:shadow-xl"
+                  >
+                    Buy Now - ₹{totalPrice}
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="text-center py-8">
