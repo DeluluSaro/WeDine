@@ -1,0 +1,6 @@
+2. Building Your Own E-Wallet System
+You can build a custom e-wallet system in your app:
+Maintain a user balance in your database.
+Allow users to add money to their wallet using Razorpay (via a “top-up” payment).
+Deduct from their wallet balance when they make a purchase.
+You are responsible for all compliance, refunds, and wallet management.
