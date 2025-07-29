@@ -27,6 +27,7 @@ import {
 import ReviewSection from "@/components/ReviewSection";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useCart, CartItem } from "@/components/CartContext";
+import BuyNowPopup from "@/components/BuyNowPopup";
 import Image from 'next/image';
 
 interface FoodItem {
@@ -74,7 +75,9 @@ const FoodDetailPage = () => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [showNutrition, setShowNutrition] = useState(false);
   const [addToCartState, setAddToCartState] = useState<'idle' | 'adding' | 'added'>("idle");
-  const { cartItems, addToCart } = useCart();
+  const [showBuyNowPopup, setShowBuyNowPopup] = useState(false);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const { cartItems, addToCart, updateQuantity, deleteItem, clearCart } = useCart();
   const cartCount = cartItems.reduce((sum: number, item: CartItem) => sum + (item.quantity || 0), 0);
 
   useEffect(() => {
@@ -156,9 +159,74 @@ const FoodDetailPage = () => {
   };
 
   const handleBuyNow = () => {
-    // TODO: Implement direct purchase
-    console.log(`Buying ${quantity} ${food?.foodName} now`);
-    // Navigate to checkout
+    if (isPlacingOrder) return; // Prevent opening popup while processing
+    // Add current item to cart if not already there
+    if (!user || !food) return;
+    
+    const existingItem = cartItems.find(item => item.foodId._id === food._id);
+    if (!existingItem) {
+      addToCart({
+        _id: `${food._id}-${Date.now()}`,
+        quantity,
+        price: food.price || 0,
+        foodId: {
+          _id: food._id,
+          foodName: food.foodName,
+          imageUrl: food.imageUrl,
+          image: food.image,
+          shopRef: { shopName: food.shopRef?.shopName },
+        },
+      });
+    }
+    setShowBuyNowPopup(true);
+  };
+
+  const handlePlaceOrder = async (paymentMethod: 'cod' | 'online') => {
+    if (isPlacingOrder) return; // Prevent duplicate order requests
+    if (!user || cartItems.length === 0) return;
+    
+    setIsPlacingOrder(true);
+    try {
+      // Use the new create-order endpoint with duplicate prevention
+      const response = await fetch("/api/orders/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cartItems: cartItems,
+          paymentMethod: paymentMethod,
+          userDetails: {
+            userId: user.id,
+            email: user.email || '',
+            name: user.name || '',
+            phone: user.phone || ''
+          }
+        }),
+      });
+
+      if (response.ok) {
+        const orderData = await response.json();
+        console.log('Order created successfully:', orderData);
+        
+        // Clear cart and close popup
+        clearCart();
+        setShowBuyNowPopup(false);
+        // Redirect to success page or show success message
+        router.push('/orders');
+      } else {
+        const errorData = await response.json();
+        // Check for duplicate order error
+        if (errorData.error && errorData.error.includes('Duplicate')) {
+          throw new Error('Duplicate order detected. Please wait before placing another order.');
+        }
+        throw new Error(errorData.error || 'Failed to place order');
+      }
+    } catch (error) {
+      console.error('Error placing order:', error);
+      // Handle error - show error message to user
+      alert(error instanceof Error ? error.message : 'Failed to place order. Please try again.');
+    } finally {
+      setIsPlacingOrder(false);
+    }
   };
 
   const handleReviewCart = () => {
@@ -529,9 +597,10 @@ const FoodDetailPage = () => {
                 </button>
                 <button
                   onClick={handleBuyNow}
-                  className="w-full bg-gradient-to-r from-green-400 to-green-500 text-white font-bold py-4 px-6 rounded-2xl hover:from-green-500 hover:to-green-600 transition-all duration-200 shadow-lg hover:shadow-xl"
+                  disabled={isPlacingOrder}
+                  className={`w-full bg-gradient-to-r from-green-400 to-green-500 text-white font-bold py-4 px-6 rounded-2xl hover:from-green-500 hover:to-green-600 transition-all duration-200 shadow-lg hover:shadow-xl${isPlacingOrder ? ' opacity-70 cursor-not-allowed' : ''}`}
                 >
-                  Buy Now - ₹{totalPrice}
+                  {isPlacingOrder ? 'Processing...' : `Buy Now - ₹${totalPrice}`}
                 </button>
               </div>
             ) : (
@@ -589,6 +658,23 @@ const FoodDetailPage = () => {
           </div>
         )}
       </div>
+
+      {/* Buy Now Popup */}
+      <BuyNowPopup
+        isOpen={showBuyNowPopup}
+        onClose={() => setShowBuyNowPopup(false)}
+        cartItems={cartItems}
+        onUpdateQuantity={updateQuantity}
+        onRemoveItem={deleteItem}
+        onPlaceOrder={handlePlaceOrder}
+        isLoading={isPlacingOrder}
+        userDetails={user ? {
+          id: user.id,
+          email: user.emailAddresses[0]?.emailAddress,
+          name: user.fullName || undefined,
+          phone: user.phoneNumbers[0]?.phoneNumber
+        } : undefined}
+      />
     </div>
   );
 };

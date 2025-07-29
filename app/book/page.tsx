@@ -34,7 +34,8 @@ const PRICE_RANGES = [
   { label: "₹100-₹200", min: 100, max: 200 },
   { label: "₹200-₹250", min: 200, max: 250 },
 ];
-const MOST_ORDERED = ["Tea", "Coffee", "Chicken Fried Rice"];
+// Sanitize food names to prevent React component name issues
+const MOST_ORDERED = ["Tea", "Coffee", "Chicken-Fried-Rice"];
 const FOOD_TYPES = ["Beverages", "Snacks", "Juices", "Breakfast", "Lunch"];
 
 // Haversine formula to calculate distance in km

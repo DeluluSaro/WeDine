@@ -4,6 +4,7 @@ import { useUser } from "@clerk/nextjs";
 import { FloatingNav } from "@/components/ui/floating-navbar";
 import { ShoppingCart } from "lucide-react";
 import { useCart } from '../../components/CartContext';
+import BuyNowPopup from '@/components/BuyNowPopup';
 import Image from 'next/image';
 
 interface OrderItem {
@@ -26,17 +27,18 @@ interface Order {
 // CartPage component
 const CartPage = () => {
   const { user } = useUser();
-  const { cartItems, decrement, deleteItem, clearCart } = useCart();
-  const [loading, setLoading] = useState(false);
+  const { cartItems, decrement, deleteItem, updateQuantity } = useCart();
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [showBuyNowPopup, setShowBuyNowPopup] = useState(false);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     setOrdersLoading(true);
     setOrdersError(null);
-    fetch(`/api/orders?userId=${user.id}`)
+    fetch(`/api/orders?userId=${user.id}&type=active`)
       .then(async (res) => {
         if (!res.ok) throw new Error('Failed to fetch orders');
         return res.json();
@@ -54,24 +56,34 @@ const CartPage = () => {
   const totalItems = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
   const totalPrice = cartItems.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 0), 0);
 
-  const handleCheckout = async () => {
+  const handleCheckout = () => {
     if (!user || cartItems.length === 0) return;
-    setLoading(true);
-    // Send order to Sanity
-    await fetch("/api/orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId: user.id,
-        items: cartItems,
-        total: totalPrice,
-        createdAt: new Date().toISOString(),
-      }),
-    });
-    clearCart();
-    setLoading(false);
-    // No redirect, stay on /cart
-    // router.push("/orders");
+    setShowBuyNowPopup(true);
+  };
+
+  const handlePlaceOrder = async () => {
+    if (!user || cartItems.length === 0) return;
+    
+    setIsPlacingOrder(true);
+    try {
+      // The BuyNowPopup now handles the order creation and cart clearing internally
+      // This function is called after successful order placement
+      
+      // Refresh orders list
+      const ordersResponse = await fetch(`/api/orders?userId=${user.id}&type=active`);
+      if (ordersResponse.ok) {
+        const data = await ordersResponse.json();
+        setOrders(data.orders || []);
+      }
+      
+      // Note: Cart clearing is now handled automatically in BuyNowPopup
+      // The cartItems will be updated automatically through the CartContext
+      
+    } catch (error) {
+      console.error('Error refreshing orders:', error);
+    } finally {
+      setIsPlacingOrder(false);
+    }
   };
 
   return (
@@ -123,10 +135,10 @@ const CartPage = () => {
             </div>
             <button
               onClick={handleCheckout}
-              disabled={loading}
+              disabled={isPlacingOrder}
               className="mt-8 w-full bg-gradient-to-r from-green-400 to-green-500 text-white font-bold py-4 px-6 rounded-2xl hover:from-green-500 hover:to-green-600 transition-all duration-200 shadow-lg hover:shadow-xl text-xl"
             >
-              {loading ? "Placing Order..." : "Checkout"}
+              {isPlacingOrder ? "Placing Order..." : "Checkout"}
             </button>
           </>
         )}
@@ -160,6 +172,23 @@ const CartPage = () => {
           </div>
         )}
       </div>
+
+      {/* Buy Now Popup */}
+      <BuyNowPopup
+        isOpen={showBuyNowPopup}
+        onClose={() => setShowBuyNowPopup(false)}
+        cartItems={cartItems}
+        onUpdateQuantity={updateQuantity}
+        onRemoveItem={deleteItem}
+        onPlaceOrder={handlePlaceOrder}
+        isLoading={isPlacingOrder}
+        userDetails={user ? {
+          id: user.id,
+          email: user.emailAddresses[0]?.emailAddress,
+          name: user.fullName || undefined,
+          phone: user.phoneNumbers[0]?.phoneNumber
+        } : undefined}
+      />
     </div>
   );
 };

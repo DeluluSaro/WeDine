@@ -4,6 +4,7 @@ import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "sonner";
 import { CartProvider } from "@/components/CartContext";
+import Script from "next/script";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
@@ -39,6 +40,12 @@ export default function RootLayout({
       }}
     >
       <html lang="en" className={inter.variable}>
+        <head>
+          <Script
+            src="https://checkout.razorpay.com/v1/checkout.js"
+            strategy="beforeInteractive"
+          />
+        </head>
         <body className="font-poppins antialiased">
           
           <CartProvider>
