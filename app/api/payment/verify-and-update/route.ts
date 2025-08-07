@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
 
     // Check if a history record already exists to prevent duplicates
     const existingHistory = await client.fetch(`
-      *[_type == "orderHistory" && originalOrderId == $originalOrderId && orderIdentifier == $orderIdentifier][0]
+      *[_type == "orderHistory" && (originalOrderId == $originalOrderId || orderIdentifier == $orderIdentifier)][0]
     `, { 
       originalOrderId: orderWithSplits._id,
       orderIdentifier: orderWithSplits.orderIdentifier

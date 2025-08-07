@@ -118,13 +118,8 @@ export function validateOrderForHistory(order: any): { valid: boolean; errors: s
   };
 }
 
-// Duplicate order prevention utilities
-export interface DuplicateOrderCheck {
-  orderId: string;
-  createdAt: string;
-  total: number;
-  message: string;
-}
+// Order utilities
+
 
 /**
  * Generate a unique order identifier to help prevent duplicates
@@ -193,7 +188,13 @@ export function generateUniqueOrderIdentifier(
   paymentMethod: 'cod' | 'online'
 ): string {
   const timestamp = Date.now();
-  const randomSuffix = Math.random().toString(36).substring(2, 8);
+  const microTimestamp = process.hrtime ? process.hrtime.bigint().toString() : Date.now().toString();
+  const randomSuffix = Math.random().toString(36).substring(2, 12); // Increased length
+  const cryptoRandom = crypto.getRandomValues ? 
+    Array.from(crypto.getRandomValues(new Uint8Array(4)))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('') : 
+    Math.random().toString(36).substring(2, 10);
   
   // Sanitize item names to prevent invalid characters
   const itemHash = cartItems
@@ -214,75 +215,10 @@ export function generateUniqueOrderIdentifier(
   const safeUserId = userId.replace(/[^a-zA-Z0-9-]/g, '-');
   const safePaymentMethod = paymentMethod.replace(/[^a-zA-Z0-9-]/g, '-');
   
-  return `order-${safeUserId}-${safePaymentMethod}-${itemHash}-${timestamp}-${randomSuffix}`;
+  return `order-${safeUserId}-${safePaymentMethod}-${itemHash}-${timestamp}-${microTimestamp}-${randomSuffix}-${cryptoRandom}`;
 }
 
-/**
- * Check for duplicate orders within a time window using Sanity client
- * @param userId - User ID to check
- * @param cartItems - Cart items to compare
- * @param paymentMethod - Payment method used
- * @param timeWindowMinutes - Time window in minutes (default: 2 for dev, 5 for prod)
- * @returns DuplicateOrderCheck object if duplicate found, null otherwise
- */
-export async function checkForDuplicateOrder(
-  userId: string, 
-  cartItems: any[], 
-  paymentMethod: 'cod' | 'online',
-  timeWindowMinutes?: number
-): Promise<DuplicateOrderCheck | null> {
-  const timeWindow = timeWindowMinutes || (process.env.NODE_ENV === 'development' ? 2 : 5);
-  const timeWindowMs = timeWindow * 60 * 1000;
-  
-  const cutoffTime = new Date(Date.now() - timeWindowMs).toISOString();
-  
-  try {
-    // Import Sanity client dynamically to avoid circular dependencies
-    const { client } = await import('@/sanity/lib/client');
-    
-    // Query for recent orders with same user and payment method
-    const recentOrders = await client.fetch(`
-      *[_type == "order" && userId == $userId && createdAt >= $cutoffTime && paymentMethod == $paymentMethod] {
-        _id,
-        createdAt,
-        items,
-        total,
-        paymentStatus,
-        orderStatus,
-        orderIdentifier
-      } | order(createdAt desc)
-    `, { 
-      userId, 
-      cutoffTime, 
-      paymentMethod 
-    });
 
-    if (recentOrders.length === 0) {
-      return null;
-    }
-
-    // Check if any recent order has similar items
-    for (const order of recentOrders) {
-      const orderItemNames = order.items?.map((item: any) => item.foodName).sort() || [];
-      const cartItemNames = cartItems.map(item => item.foodId?.foodName || item.foodName).sort();
-      
-      // Check if items are similar (same food names)
-      if (JSON.stringify(orderItemNames) === JSON.stringify(cartItemNames)) {
-        return {
-          orderId: order._id,
-          createdAt: order.createdAt,
-          total: order.total,
-          message: `Duplicate order detected. You placed a similar order ${timeWindow} minutes ago.`
-        };
-      }
-    }
-
-    return null;
-  } catch (error) {
-    console.error('Error checking for duplicate orders:', error);
-    return null;
-  }
-}
 
 /**
  * Check for existing pending orders that should be cleaned up

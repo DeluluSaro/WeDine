@@ -147,218 +147,173 @@ const OrdersPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-200 via-yellow-100 to-beige-100">
-      <FloatingNav navItems={navItems} showBadges={true} cartCount={0} eWalletAmount={500} />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <FloatingNav navItems={navItems} showBadges={true} />
       
-      <div className="max-w-4xl mx-auto pt-32 px-4 pb-12">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-extrabold text-yellow-800 mb-4">Your Orders</h1>
-          <p className="text-yellow-700 text-lg">Track your food orders and delivery status</p>
-        </div>
-
-        {/* Order Type Toggle */}
-        <div className="flex justify-center mb-8">
-          <div className="bg-white/70 rounded-full p-1 shadow-lg">
-            <button
-              onClick={() => setOrderType('active')}
-              className={`px-6 py-3 rounded-full font-semibold transition-all duration-200 flex items-center gap-2 ${
-                orderType === 'active'
-                  ? 'bg-yellow-500 text-yellow-900 shadow-md'
-                  : 'text-yellow-700 hover:text-yellow-900'
-              }`}
-            >
-              <Zap className="w-4 h-4" />
-              Active Orders
-            </button>
-            <button
-              onClick={() => setOrderType('history')}
-              className={`px-6 py-3 rounded-full font-semibold transition-all duration-200 flex items-center gap-2 ${
-                orderType === 'history'
-                  ? 'bg-yellow-500 text-yellow-900 shadow-md'
-                  : 'text-yellow-700 hover:text-yellow-900'
-              }`}
-            >
-              <History className="w-4 h-4" />
-              Order History
-            </button>
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600 mx-auto"></div>
-            <p className="mt-4 text-yellow-800 font-semibold">Loading your orders...</p>
-          </div>
-        ) : error ? (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">😔</div>
-            <h2 className="text-2xl font-bold text-yellow-800 mb-2">Oops! Something went wrong</h2>
-            <p className="text-yellow-700 mb-4">{error}</p>
-            <button 
-              onClick={() => window.location.reload()}
-              className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 font-bold py-3 px-6 rounded-full hover:from-yellow-500 hover:to-yellow-600 transition-all duration-200 shadow-lg"
-            >
-              Try Again
-            </button>
-          </div>
-        ) : orders.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">🍽️</div>
-            <h2 className="text-2xl font-bold text-yellow-800 mb-2">
-              {orderType === 'active' ? 'No Active Orders' : 'No Order History'}
-            </h2>
-            <p className="text-yellow-700 mb-6">
-              {orderType === 'active' 
-                ? 'You have no active orders at the moment.' 
-                : 'Start your food journey by placing your first order!'
-              }
+      <div className="pt-20 sm:pt-24 lg:pt-32 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-blue-800 mb-4 flex items-center gap-2 sm:gap-3">
+              <History className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
+              My Orders
+            </h1>
+            <p className="text-sm sm:text-base text-blue-700">
+              Track your orders and view order history
             </p>
-            <button 
-              onClick={() => router.push('/book')}
-              className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 font-bold py-3 px-6 rounded-full hover:from-yellow-500 hover:to-yellow-600 transition-all duration-200 shadow-lg"
-            >
-              Browse Food
-            </button>
           </div>
-        ) : (
-          <div className="space-y-6">
-            {orders.map((order) => (
-              <div key={order._id} className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-yellow-100 shadow-lg hover:shadow-xl transition-shadow">
-                {/* Header with Order ID and Status */}
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-yellow-100 p-3 rounded-full">
-                      {getStatusIcon(order.status || 'ordered')}
-                    </div>
+
+          {/* Order Type Toggle */}
+          <div className="mb-6">
+            <div className="flex bg-white/80 backdrop-blur-sm rounded-xl p-1 shadow-lg max-w-xs">
+              <button
+                onClick={() => setOrderType('active')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                  orderType === 'active'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'text-blue-600 hover:bg-blue-50'
+                }`}
+              >
+                Active Orders
+              </button>
+              <button
+                onClick={() => setOrderType('history')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                  orderType === 'history'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'text-blue-600 hover:bg-blue-50'
+                }`}
+              >
+                Order History
+              </button>
+            </div>
+          </div>
+
+          {/* Loading State */}
+          {loading && (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+              <p className="text-red-700 text-sm">{error}</p>
+            </div>
+          )}
+
+          {/* Orders Grid */}
+          {!loading && !error && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {orders.map((order) => (
+                <div
+                  key={order._id}
+                  className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-4 sm:p-6 hover:shadow-2xl transition-all duration-300 border border-white/30"
+                >
+                  {/* Order Header */}
+                  <div className="flex items-start justify-between mb-4">
                     <div>
-                      <h3 className="text-xl font-bold text-yellow-800">
+                      <h3 className="font-bold text-gray-900 text-sm sm:text-base">
                         Order #{order.orderId || order._id.slice(-8)}
                       </h3>
-                      <p className="text-sm text-yellow-600">
-                        {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        }) : 'Date not available'}
+                      <p className="text-xs sm:text-sm text-gray-500">
+                        {new Date(order.createdAt || '').toLocaleDateString()}
                       </p>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <div className={`px-4 py-2 rounded-full text-sm font-semibold ${getStatusColor(order.status || 'ordered')}`}>
-                      {order.status || 'Ordered'}
+                    <div className="flex items-center gap-2">
+                      {getStatusIcon(order.status || '')}
+                      <span className={`text-xs sm:text-sm font-medium px-2 py-1 rounded-full ${getStatusColor(order.status || '')}`}>
+                        {order.status || 'Pending'}
+                      </span>
                     </div>
-                    {order.paymentStatus && (
-                      <div className="mt-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                        ✅ Paid
-                      </div>
-                    )}
                   </div>
-                </div>
 
-                {/* Shop Information */}
-                <div className="mb-6 p-4 bg-yellow-50 rounded-xl border border-yellow-200">
-                  <h4 className="font-semibold text-yellow-800 mb-2 flex items-center gap-2">
-                    🏪 Restaurant
-                  </h4>
-                  <div className="text-yellow-700">
-                    {getShopNames(order).length === 1 ? (
-                      <span className="font-medium">{getShopNames(order)[0]}</span>
-                    ) : (
-                      <div>
-                        <span className="font-medium">Multiple Restaurants:</span>
-                        <ul className="mt-1 ml-4 space-y-1">
-                          {getShopNames(order).map((shop, index) => (
-                            <li key={index} className="text-sm">• {shop}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                  {/* Order Details */}
+                  <div className="space-y-3 mb-4">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Total Items:</span>
+                      <span className="font-medium">{getTotalItems(order)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Total Amount:</span>
+                      <span className="font-bold text-blue-600">₹{order.total || 0}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Payment:</span>
+                      <span className={`font-medium ${order.paymentStatus ? 'text-green-600' : 'text-orange-600'}`}>
+                        {order.paymentStatus ? 'Paid' : 'Pending'}
+                      </span>
+                    </div>
                   </div>
-                </div>
 
-                {/* Order Details */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                  <div>
-                    <h4 className="font-semibold text-yellow-800 mb-3 flex items-center gap-2">
-                      🍽️ Order Items
-                    </h4>
-                    <div className="space-y-2">
-                      {order.items && order.items.length > 0 ? (
-                        order.items.map((item, index) => (
-                          <div key={index} className="flex justify-between items-center p-2 bg-white/50 rounded-lg">
-                            <div>
-                              <span className="font-medium text-yellow-800">{item.foodName}</span>
-                              <span className="text-sm text-yellow-600 ml-2">× {item.quantity}</span>
-                            </div>
-                            <span className="font-semibold text-yellow-700">₹{item.price * item.quantity}</span>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="flex justify-between items-center p-2 bg-white/50 rounded-lg">
-                          <span className="font-medium text-yellow-800">{order.foodName || 'Food item'}</span>
-                          <span className="font-semibold text-yellow-700">₹{order.total}</span>
+                  {/* Shop Names */}
+                  <div className="mb-4">
+                    <p className="text-xs text-gray-500 mb-1">Shops:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {getShopNames(order).map((shopName, index) => (
+                        <span
+                          key={index}
+                          className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full"
+                        >
+                          {shopName}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Order Items */}
+                  <div className="mb-4">
+                    <p className="text-xs text-gray-500 mb-2">Items:</p>
+                    <div className="space-y-1 max-h-20 overflow-y-auto">
+                      {order.items?.map((item, index) => (
+                        <div key={index} className="flex justify-between text-xs">
+                          <span className="text-gray-700 truncate">{item.foodName}</span>
+                          <span className="text-gray-500">x{item.quantity}</span>
+                        </div>
+                      )) || (
+                        <div className="text-xs text-gray-500">
+                          {order.foodName} x{order.quantityOrdered}
                         </div>
                       )}
                     </div>
                   </div>
-                  
-                  <div>
-                    <h4 className="font-semibold text-yellow-800 mb-3 flex items-center gap-2">
-                      💳 Payment Details
-                    </h4>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center p-2 bg-white/50 rounded-lg">
-                        <span className="text-yellow-700">Payment Method:</span>
-                        <span className="font-medium text-yellow-800">
-                          {order.paymentMethod === 'online' ? '💳 Online Payment' : '💵 Cash on Delivery'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center p-2 bg-white/50 rounded-lg">
-                        <span className="text-yellow-700">Total Items:</span>
-                        <span className="font-medium text-yellow-800">{getTotalItems(order)}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-yellow-100 rounded-lg border border-yellow-200">
-                        <span className="font-semibold text-yellow-800">Total Amount:</span>
-                        <span className="font-bold text-lg text-yellow-800">₹{order.total}</span>
-                      </div>
+
+                  {/* Order Footer */}
+                  <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                    <div className="flex items-center gap-1 text-xs text-gray-500">
+                      <Zap className="w-3 h-3" />
+                      {order.paymentMethod || 'COD'}
                     </div>
+                    {order.lifecycleNotes && (
+                      <div className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded">
+                        {order.lifecycleNotes}
+                      </div>
+                    )}
                   </div>
                 </div>
+              ))}
+            </div>
+          )}
 
-                {/* Status Messages */}
-                {order.status?.toLowerCase() === 'delivered' && (
-                  <div className="mt-4 p-4 bg-green-50 rounded-xl border border-green-200">
-                    <div className="flex items-center gap-3 text-green-800">
-                      <CheckCircle className="w-6 h-6" />
-                      <div>
-                        <span className="font-semibold">Order delivered successfully!</span>
-                        <p className="text-sm text-green-600 mt-1">Thank you for choosing WeDine!</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {order.lifecycleNotes && (
-                  <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                    <div className="text-sm text-blue-800">
-                      <strong>📝 Note:</strong> {order.lifecycleNotes}
-                    </div>
-                  </div>
-                )}
-
-                {order.archivedAt && (
-                  <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <div className="text-xs text-gray-500">
-                      📁 Archived: {new Date(order.archivedAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                )}
+          {/* Empty State */}
+          {!loading && !error && orders.length === 0 && (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <History className="w-8 h-8 text-blue-600" />
               </div>
-            ))}
-          </div>
-        )}
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                No {orderType === 'active' ? 'Active' : ''} Orders
+              </h3>
+              <p className="text-gray-600 text-sm">
+                {orderType === 'active' 
+                  ? "You don't have any active orders at the moment."
+                  : "Your order history will appear here."
+                }
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

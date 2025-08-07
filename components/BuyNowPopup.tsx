@@ -94,10 +94,9 @@ const BuyNowPopup: React.FC<BuyNowPopupProps> = ({
   const [paymentSuccess, setPaymentSuccess] = useState<string | null>(null);
   const [isProcessingCOD, setIsProcessingCOD] = useState(false);
   
-  // Duplicate order prevention states
+  // Order processing states
   const [isOrderProcessing, setIsOrderProcessing] = useState(false);
   const [orderProcessingType, setOrderProcessingType] = useState<'cod' | 'online' | null>(null);
-  const orderProcessingRef = useRef(false);
   const { clearCart } = useCart();
 
   // Update local cart items when prop changes
@@ -127,11 +126,20 @@ const BuyNowPopup: React.FC<BuyNowPopupProps> = ({
   };
 
   const handlePlaceOrder = async () => {
-    // Prevent duplicate order submission
-    if (isOrderProcessing || orderProcessingRef.current) {
-      console.log('🛡️ Duplicate order prevention: Order already being processed');
+    // Prevent multiple order submissions with enhanced protection
+    if (isOrderProcessing || isProcessingCOD) {
+      console.log('Order already being processed');
       toast.error('Order already being processed. Please wait...');
       return;
+    }
+
+    // Additional protection: disable button for 2 seconds after any order attempt
+    const button = document.querySelector('[data-order-button]') as HTMLButtonElement;
+    if (button) {
+      button.disabled = true;
+      setTimeout(() => {
+        if (button) button.disabled = false;
+      }, 2000);
     }
 
     if (!userDetails?.id) {
@@ -142,7 +150,6 @@ const BuyNowPopup: React.FC<BuyNowPopupProps> = ({
     // Set processing state immediately
     setIsOrderProcessing(true);
     setOrderProcessingType(paymentMethod);
-    orderProcessingRef.current = true;
     setPaymentError(null);
     setPaymentSuccess(null);
 
@@ -158,7 +165,6 @@ const BuyNowPopup: React.FC<BuyNowPopupProps> = ({
       // Reset processing state on error
       setIsOrderProcessing(false);
       setOrderProcessingType(null);
-      orderProcessingRef.current = false;
     }
   };
 
@@ -190,10 +196,17 @@ const BuyNowPopup: React.FC<BuyNowPopupProps> = ({
 
       if (!orderResponse.ok) {
         const errorData = await orderResponse.json();
-        // Check for duplicate order error
-        if (errorData.error && errorData.error.includes('Duplicate')) {
-          throw new Error('Duplicate order detected. Please wait before placing another order.');
+        
+        // Handle duplicate order errors specifically
+        if (orderResponse.status === 409) {
+          console.warn('Duplicate order detected:', errorData);
+          toast.error('Order already exists. Please check your orders.');
+          // Reset processing state
+          setIsOrderProcessing(false);
+          setOrderProcessingType(null);
+          return;
         }
+        
         throw new Error(errorData.error || 'Failed to create order');
       }
 
@@ -261,16 +274,14 @@ const BuyNowPopup: React.FC<BuyNowPopupProps> = ({
             // Reset processing state on error
             setIsOrderProcessing(false);
             setOrderProcessingType(null);
-            orderProcessingRef.current = false;
           }
         },
         modal: {
           ondismiss: function() {
             // Reset processing state if payment is cancelled
-            console.log('🛡️ Payment cancelled by user');
+            console.log('Payment cancelled by user');
             setIsOrderProcessing(false);
             setOrderProcessingType(null);
-            orderProcessingRef.current = false;
             setIsProcessingCOD(false);
           }
         },
@@ -293,7 +304,6 @@ const BuyNowPopup: React.FC<BuyNowPopupProps> = ({
       // Reset processing state on error
       setIsOrderProcessing(false);
       setOrderProcessingType(null);
-      orderProcessingRef.current = false;
     } finally {
       setIsProcessingCOD(false);
     }
@@ -342,15 +352,22 @@ const BuyNowPopup: React.FC<BuyNowPopupProps> = ({
       // Check order creation
       if (!orderResponse.ok) {
         const errorData = await orderResponse.json();
-        // Check for duplicate order error
-        if (errorData.error && errorData.error.includes('Duplicate')) {
-          throw new Error('Duplicate order detected. Please wait before placing another order.');
+        
+        // Handle duplicate order errors specifically
+        if (orderResponse.status === 409) {
+          console.warn('Duplicate COD order detected:', errorData);
+          toast.error('Order already exists. Please check your orders.');
+          // Reset processing state
+          setIsOrderProcessing(false);
+          setOrderProcessingType(null);
+          return;
         }
+        
         throw new Error(errorData.error || 'Failed to create COD order');
       }
 
       const orderData = await orderResponse.json();
-      console.log('🔍 Debug: COD order created successfully:', orderData);
+      // console.log('🔍 Debug: COD order created successfully:', orderData);
 
       // Check stock reduction (non-blocking)
       let stockSuccess = false;
@@ -384,7 +401,6 @@ const BuyNowPopup: React.FC<BuyNowPopupProps> = ({
       // Reset processing state
       setIsOrderProcessing(false);
       setOrderProcessingType(null);
-      orderProcessingRef.current = false;
       
       // Close popup quickly
       setTimeout(() => {
@@ -402,7 +418,6 @@ const BuyNowPopup: React.FC<BuyNowPopupProps> = ({
       // Reset processing state on error
       setIsOrderProcessing(false);
       setOrderProcessingType(null);
-      orderProcessingRef.current = false;
     } finally {
       setIsProcessingCOD(false);
     }
@@ -505,7 +520,6 @@ const BuyNowPopup: React.FC<BuyNowPopupProps> = ({
       // Reset processing state
       setIsOrderProcessing(false);
       setOrderProcessingType(null);
-      orderProcessingRef.current = false;
       
       // Close popup quickly
       setTimeout(() => {
@@ -521,7 +535,6 @@ const BuyNowPopup: React.FC<BuyNowPopupProps> = ({
       // Reset processing state on error
       setIsOrderProcessing(false);
       setOrderProcessingType(null);
-      orderProcessingRef.current = false;
     }
   };
 
@@ -530,7 +543,6 @@ const BuyNowPopup: React.FC<BuyNowPopupProps> = ({
     if (!isOpen) {
       setIsOrderProcessing(false);
       setOrderProcessingType(null);
-      orderProcessingRef.current = false;
       setPaymentError(null);
       setPaymentSuccess(null);
     }
@@ -741,6 +753,7 @@ const BuyNowPopup: React.FC<BuyNowPopupProps> = ({
 
             {/* Place Order Button */}
             <button
+              data-order-button
               onClick={handlePlaceOrder}
               disabled={isLoading || localCartItems.length === 0 || isProcessingCOD || isOrderProcessing}
               className={`w-full mt-6 py-4 px-6 rounded-2xl font-bold text-white transition-all duration-200 ${
@@ -781,12 +794,12 @@ const BuyNowPopup: React.FC<BuyNowPopupProps> = ({
               </div>
             </div>
 
-            {/* Duplicate Prevention Info */}
+            {/* Order Processing Info */}
             {isOrderProcessing && (
-              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <div className="flex items-center gap-2 text-sm text-yellow-800">
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-2 text-sm text-blue-800">
                   <AlertCircle className="w-4 h-4" />
-                  <span>Order processing... Please don't click again</span>
+                  <span>Order processing... Please wait</span>
                 </div>
               </div>
             )}

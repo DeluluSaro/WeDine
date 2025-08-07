@@ -40,6 +40,7 @@ interface FoodItem {
     longitude?: number;
     ownerMobile?: string;
     ownerEmail?: string;
+    paymentMobile?: string;
   };
   imageUrl?: string;
   image?: { asset: { url: string } };
@@ -91,7 +92,8 @@ const FoodDetailPage = () => {
         latitude,
         longitude,
         ownerMobile,
-        ownerEmail
+        ownerEmail,
+        paymentMobile
       },
       imageUrl,
       image{asset->{url}},
@@ -182,12 +184,21 @@ const FoodDetailPage = () => {
   };
 
   const handlePlaceOrder = async (paymentMethod: 'cod' | 'online') => {
-    if (isPlacingOrder) return; // Prevent duplicate order requests
+    if (isPlacingOrder) return; // Prevent multiple order requests
     if (!user || cartItems.length === 0) return;
     
     setIsPlacingOrder(true);
+    
+    // Additional protection: disable any order buttons for 2 seconds
+    const buttons = document.querySelectorAll('[data-order-button]');
+    buttons.forEach((button: any) => {
+      button.disabled = true;
+      setTimeout(() => {
+        if (button) button.disabled = false;
+      }, 2000);
+    });
     try {
-      // Use the new create-order endpoint with duplicate prevention
+      // Use the new create-order endpoint
       const response = await fetch("/api/orders/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -214,10 +225,14 @@ const FoodDetailPage = () => {
         router.push('/orders');
       } else {
         const errorData = await response.json();
-        // Check for duplicate order error
-        if (errorData.error && errorData.error.includes('Duplicate')) {
-          throw new Error('Duplicate order detected. Please wait before placing another order.');
+        
+        // Handle duplicate order errors specifically
+        if (response.status === 409) {
+          console.warn('Duplicate order detected:', errorData);
+          alert('Order already exists. Please check your orders.');
+          return;
         }
+        
         throw new Error(errorData.error || 'Failed to place order');
       }
     } catch (error) {
@@ -629,7 +644,12 @@ const FoodDetailPage = () => {
                   {food.shopRef.ownerMobile && (
                     <div className="flex items-center gap-3">
                       <Phone className="w-5 h-5 text-yellow-600" />
-                      <span className="text-yellow-700">{food.shopRef.ownerMobile}</span>
+                      <div className="flex flex-col">
+                        <span className="text-yellow-700 text-sm">SMS Contact: {food.shopRef.ownerMobile}</span>
+                        {food.shopRef.paymentMobile && (
+                          <span className="text-yellow-700 text-sm">Payment: {food.shopRef.paymentMobile}</span>
+                        )}
+                      </div>
                     </div>
                   )}
                   {food.shopRef.ownerEmail && (

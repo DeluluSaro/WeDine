@@ -23,12 +23,42 @@ export async function POST(request: NextRequest) {
       shopName: foodItem.shopRef?.shopName || 'Unknown Shop',
       foodName: foodItem.foodName || foodItem.name || 'Unknown Food',
       quantity: foodItem.quantity || 0,
-      ownerMobile: foodItem.shopRef?.ownerMobile,
+      ownerMobile: foodItem.shopRef?.paymentMobile || foodItem.shopRef?.ownerMobile, // Use paymentMobile first, fallback to ownerMobile
       ownerEmail: foodItem.shopRef?.ownerEmail
     };
 
+    // Format mobile number for Twilio (remove hyphens)
+    if (notificationData.ownerMobile) {
+      notificationData.ownerMobile = notificationData.ownerMobile.replace(/-/g, '');
+    }
+
     console.log("Calling sendStockOverNotification...");
     console.log("Notification data:", notificationData);
+    
+    // Check Twilio environment variables before sending
+    const twilioConfig = {
+      accountSid: process.env.TWILIO_ACCOUNT_SID,
+      authToken: process.env.TWILIO_AUTH_TOKEN,
+      phoneNumber: process.env.TWILIO_PHONE_NUMBER
+    };
+    
+    console.log("🔧 Twilio Configuration Check:");
+    console.log("- Account SID:", twilioConfig.accountSid ? "✅ Set" : "❌ Missing");
+    console.log("- Auth Token:", twilioConfig.authToken ? "✅ Set" : "❌ Missing");
+    console.log("- Phone Number:", twilioConfig.phoneNumber ? "✅ Set" : "❌ Missing");
+    
+    if (!twilioConfig.accountSid || !twilioConfig.authToken || !twilioConfig.phoneNumber) {
+      console.error("❌ Twilio environment variables missing");
+      return NextResponse.json({
+        error: 'Twilio configuration missing',
+        details: {
+          accountSid: !!twilioConfig.accountSid,
+          authToken: !!twilioConfig.authToken,
+          phoneNumber: !!twilioConfig.phoneNumber
+        },
+        message: 'Please set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER environment variables'
+      }, { status: 500 });
+    }
     
     const result = await sendStockOverNotification(notificationData);
     console.log("Notification result:", result);

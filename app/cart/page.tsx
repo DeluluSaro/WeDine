@@ -89,14 +89,14 @@ const CartPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-200 via-yellow-100 to-beige-100 pb-12">
       <FloatingNav navItems={[{ name: "Book", link: "/book", icon: <ShoppingCart /> }]} showBadges={true} cartCount={totalItems} eWalletAmount={500} />
-      <div className="max-w-3xl mx-auto pt-32 px-4">
-        <h1 className="text-4xl font-extrabold text-yellow-800 mb-8 flex items-center gap-3">
-          <ShoppingCart className="w-8 h-8 text-yellow-600" />
+      <div className="max-w-3xl mx-auto pt-20 sm:pt-32 px-4">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-yellow-800 mb-6 sm:mb-8 flex items-center gap-2 sm:gap-3">
+          <ShoppingCart className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-600" />
           Your Cart
         </h1>
-        <div className="bg-white/80 rounded-2xl shadow-xl p-6 mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-lg font-bold text-yellow-700">Total Items: <span className="text-yellow-900">{totalItems}</span></div>
-          <div className="text-lg font-bold text-yellow-700">Total Price: <span className="text-yellow-900">₹{totalPrice}</span></div>
+        <div className="bg-white/80 rounded-2xl shadow-xl p-4 sm:p-6 mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+          <div className="text-base sm:text-lg font-bold text-yellow-700">Total Items: <span className="text-yellow-900">{totalItems}</span></div>
+          <div className="text-base sm:text-lg font-bold text-yellow-700">Total Price: <span className="text-yellow-900">₹{totalPrice}</span></div>
         </div>
         {cartItems.length === 0 ? (
           <div className="text-center text-yellow-600 text-xl">Your cart is empty.</div>

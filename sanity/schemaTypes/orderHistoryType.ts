@@ -23,7 +23,7 @@ export const orderHistoryType = defineType({
       type: "string",
       title: "Unique Order Identifier",
       description: "Unique identifier to prevent duplicate history entries",
-      validation: Rule => Rule.required().unique()
+      validation: Rule => Rule.required()
     }),
     defineField({
       name: "items",
@@ -37,7 +37,6 @@ export const orderHistoryType = defineType({
             { name: "foodName", type: "string", title: "Food Name", validation: Rule => Rule.required() },
             { name: "quantity", type: "number", title: "Quantity", validation: Rule => Rule.required().min(1) },
             { name: "price", type: "number", title: "Price", validation: Rule => Rule.required().min(0) },
-            { name: "shopId", type: "string", title: "Shop ID", validation: Rule => Rule.required() },
             { name: "shopName", type: "string", title: "Shop Name", validation: Rule => Rule.required() },
           ],
         },

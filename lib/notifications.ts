@@ -23,23 +23,71 @@ async function sendSMSNotification(
   shopName: string
 ): Promise<SMSResult> {
   try {
+    // Check if Twilio environment variables are set
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    const phoneNumber = process.env.TWILIO_PHONE_NUMBER;
+
+    if (!accountSid || !authToken || !phoneNumber) {
+      console.error("❌ Twilio environment variables missing:");
+      console.error("- TWILIO_ACCOUNT_SID:", !!accountSid);
+      console.error("- TWILIO_AUTH_TOKEN:", !!authToken);
+      console.error("- TWILIO_PHONE_NUMBER:", !!phoneNumber);
+      return {
+        success: false,
+        message: "Twilio configuration missing. Please set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER environment variables.",
+        error: "Missing Twilio environment variables"
+      };
+    }
+
+    // Validate mobile number format
+    if (!ownerMobile || !/^\+91[0-9]{10}$/.test(ownerMobile)) {
+      console.error("❌ Invalid mobile number format:", ownerMobile);
+      return {
+        success: false,
+        message: "Invalid mobile number format. Expected: +918754502573",
+        error: "Invalid mobile number format"
+      };
+    }
+
+    console.log("🔧 Twilio Configuration:");
+    console.log("- Account SID:", accountSid.substring(0, 10) + "...");
+    console.log("- Auth Token:", authToken.substring(0, 10) + "...");
+    console.log("- Phone Number:", phoneNumber);
+    console.log("- To Mobile:", ownerMobile);
+
     // Initialize Twilio client with environment variables
-    const client = twilio(
-      process.env.TWILIO_ACCOUNT_SID,
-      process.env.TWILIO_AUTH_TOKEN
-    );
+    const client = twilio(accountSid, authToken);
 
     // Send SMS message
     const message = await client.messages.create({
       body: `🚨 STOCK ALERT: ${foodName} is out of stock at ${shopName}. Please restock immediately!`,
-      from: process.env.TWILIO_PHONE_NUMBER,
+      from: phoneNumber,
       to: ownerMobile
     });
 
-    console.log(`SMS sent successfully! SID: ${message.sid}`);
+    console.log(`✅ SMS sent successfully! SID: ${message.sid}`);
     return { success: true, message: "SMS notification sent", sid: message.sid };
   } catch (error) {
-    console.error("SMS notification failed:", error);
+    console.error("❌ SMS notification failed:", error);
+    
+    // Handle specific Twilio errors
+    if (error instanceof Error) {
+      if (error.message.includes('Authentication')) {
+        return {
+          success: false,
+          message: "Twilio authentication failed. Check your Account SID and Auth Token.",
+          error: error.message
+        };
+      } else if (error.message.includes('phone number')) {
+        return {
+          success: false,
+          message: "Invalid phone number format or Twilio phone number not verified.",
+          error: error.message
+        };
+      }
+    }
+    
     return { 
       success: false, 
       message: "SMS notification failed", 

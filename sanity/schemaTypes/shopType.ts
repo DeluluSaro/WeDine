@@ -34,9 +34,16 @@ export const shopType = defineType({
     defineField({
       name: "ownerMobile",
       type: "string",
-      title: "Owner Mobile Number",
+      title: "Owner Mobile Number (SMS)",
       validation: Rule => Rule.required(),
-      description: "Mobile number for stock notifications",
+      description: "Mobile number for SMS notifications (format: +91-XXXXXXXXXX)",
+    }),
+    defineField({
+      name: "paymentMobile",
+      type: "string",
+      title: "Payment Mobile Number",
+      description: "Mobile number for payment transfers (format: +918754502573 - no hyphen)",
+      validation: Rule => Rule.regex(/^\+91[0-9]{10}$/).warning('Please use format: +918754502573 (no hyphen)')
     }),
     defineField({
       name: "ownerEmail",

@@ -35,6 +35,7 @@ export interface CartItem {
       _id: string;
       shopName: string;
       ownerMobile?: string;
+      paymentMobile?: string;
       razorpayAccountId?: string;
     };
   };
@@ -53,10 +54,14 @@ export function calculatePaymentSplits(cartItems: CartItem[]): PaymentSplit[] {
     const itemTotal = item.price * item.quantity;
     
     if (!shopSplits[shopId]) {
+      // Use paymentMobile for payments, fallback to ownerMobile
+      const mobileForPayment = item.foodId.shopRef.paymentMobile || 
+        (item.foodId.shopRef.ownerMobile ? item.foodId.shopRef.ownerMobile.replace(/-/g, '') : '');
+      
       shopSplits[shopId] = {
         shopId: shopId,
         shopName: item.foodId.shopRef.shopName,
-        ownerMobile: item.foodId.shopRef.ownerMobile || '',
+        ownerMobile: mobileForPayment, // Use formatted mobile for payments
         splitAmount: 0,
         transferStatus: 'pending'
       };
@@ -300,22 +305,21 @@ export function generatePaymentOptions(orderId: string, amount: number, currency
 }
 
 /**
- * Calculate total amount with tax and delivery
+ * Calculate total amount with tax (no delivery fee)
  */
-export function calculateTotalAmount(subtotal: number, taxRate: number = 0.05, deliveryThreshold: number = 500, deliveryFee: number = 50): {
+export function calculateTotalAmount(subtotal: number, taxRate: number = 0.05): {
   subtotal: number;
   tax: number;
   deliveryFee: number;
   total: number;
 } {
   const tax = subtotal * taxRate;
-  const delivery = subtotal > deliveryThreshold ? 0 : deliveryFee;
-  const total = subtotal + tax + delivery;
+  const total = subtotal + tax;
   
   return {
     subtotal,
     tax,
-    deliveryFee: delivery,
+    deliveryFee: 0,
     total
   };
 }
