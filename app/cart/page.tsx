@@ -44,7 +44,6 @@ const CartPage = () => {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState<string | null>(null);
   const [showBuyNowPopup, setShowBuyNowPopup] = useState(false);
-  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
   const navItems = [
     { name: "Home", link: "/", icon: <Home /> },
@@ -52,23 +51,23 @@ const CartPage = () => {
     { name: "Cart", link: "/cart", icon: <ShoppingCart /> },
   ];
 
-  useEffect(() => {
+  const fetchOrders = async () => {
     if (!user) return;
     setOrdersLoading(true);
-    setOrdersError(null);
-    fetch(`/api/orders?userId=${user.id}&type=active`)
-      .then(async (res) => {
-        if (!res.ok) throw new Error('Failed to fetch orders');
-        return res.json();
-      })
-      .then((data) => {
-        setOrders(data.orders || []);
-        setOrdersLoading(false);
-      })
-      .catch((err) => {
-        setOrdersError(err.message);
-        setOrdersLoading(false);
-      });
+    try {
+      const res = await fetch(`/api/orders?userId=${user.id}&type=active`);
+      if (!res.ok) throw new Error('Failed to fetch orders');
+      const data = await res.json();
+      setOrders(data.orders || []);
+    } catch (err) {
+      setOrdersError(err instanceof Error ? err.message : 'An unknown error occurred');
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders();
   }, [user]);
 
   const totalItems = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
@@ -79,21 +78,10 @@ const CartPage = () => {
     setShowBuyNowPopup(true);
   };
 
-  const handlePlaceOrder = async () => {
-    if (!user || cartItems.length === 0) return;
-    
-    setIsPlacingOrder(true);
-    try {
-      const ordersResponse = await fetch(`/api/orders?userId=${user.id}&type=active`);
-      if (ordersResponse.ok) {
-        const data = await ordersResponse.json();
-        setOrders(data.orders || []);
-      }
-    } catch (error) {
-      console.error('Error refreshing orders:', error);
-    } finally {
-      setIsPlacingOrder(false);
-    }
+  const handleOrderPlaced = () => {
+    // This function is now just a callback to refresh the orders list.
+    // The popup handles cart clearing and success messages.
+    fetchOrders();
   };
 
   const getStatusBadge = (status?: string) => {
@@ -136,7 +124,6 @@ const CartPage = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12 items-start">
-            {/* Cart Items Column */}
             <div className="lg:col-span-2 space-y-4">
               {cartItems.map((item) => (
                 <div key={item._id} className="flex items-center gap-4 bg-white rounded-2xl shadow-lg p-4 border border-yellow-200/50">
@@ -165,7 +152,6 @@ const CartPage = () => {
               ))}
             </div>
 
-            {/* Summary Column */}
             <div className="lg:col-span-1 sticky top-28">
               <div className="bg-white rounded-2xl shadow-xl border border-yellow-200/50 p-6">
                 <h2 className="text-2xl font-bold mb-4 border-b pb-3" style={{color: COLORS.brownDark}}>Order Summary</h2>
@@ -186,11 +172,10 @@ const CartPage = () => {
                 </div>
                 <button
                   onClick={handleCheckout}
-                  disabled={isPlacingOrder}
                   className="w-full font-bold py-3 px-6 rounded-xl text-white transition-all duration-300 shadow-lg hover:shadow-xl text-lg disabled:opacity-50"
                   style={{background: `linear-gradient(to right, ${COLORS.yellow}, ${COLORS.yellowDeep})`}}
                 >
-                  {isPlacingOrder ? "Placing Order..." : "Proceed to Checkout"}
+                  Proceed to Checkout
                 </button>
               </div>
             </div>
@@ -198,7 +183,6 @@ const CartPage = () => {
         )}
       </div>
       
-      {/* Past Orders Section */}
       <div className="max-w-6xl mx-auto mt-16 px-4">
         <h2 className="text-2xl sm:text-3xl font-bold mb-6" style={{color: COLORS.brownDark}}>Active Orders</h2>
         {ordersLoading ? (
@@ -218,22 +202,10 @@ const CartPage = () => {
                   {getStatusBadge(order.status)}
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-500">Date</p>
-                    <p className="font-semibold" style={{color: COLORS.brown}}>{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Items</p>
-                    <p className="font-semibold" style={{color: COLORS.brown}}>{order.items?.map(i => `${i.foodName} (x${i.quantity})`).join(", ") || order.foodName}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Shop</p>
-                    <p className="font-semibold" style={{color: COLORS.brown}}>{order.shopName || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Total</p>
-                    <p className="font-bold text-base" style={{color: COLORS.brownDark}}>₹{order.total}</p>
-                  </div>
+                  <div><p className="text-gray-500">Date</p><p className="font-semibold" style={{color: COLORS.brown}}>{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A'}</p></div>
+                  <div><p className="text-gray-500">Items</p><p className="font-semibold" style={{color: COLORS.brown}}>{order.items?.map(i => `${i.foodName} (x${i.quantity})`).join(", ") || order.foodName}</p></div>
+                  <div><p className="text-gray-500">Shop</p><p className="font-semibold" style={{color: COLORS.brown}}>{order.shopName || 'N/A'}</p></div>
+                  <div><p className="text-gray-500">Total</p><p className="font-bold text-base" style={{color: COLORS.brownDark}}>₹{order.total}</p></div>
                 </div>
               </div>
             ))}
@@ -241,15 +213,13 @@ const CartPage = () => {
         )}
       </div>
 
-      {/* Buy Now Popup */}
       <BuyNowPopup
         isOpen={showBuyNowPopup}
         onClose={() => setShowBuyNowPopup(false)}
         cartItems={cartItems}
         onUpdateQuantity={updateQuantity}
         onRemoveItem={deleteItem}
-        onPlaceOrder={handlePlaceOrder}
-        isLoading={isPlacingOrder}
+        onPlaceOrder={handleOrderPlaced}
         userDetails={user ? {
           userId: user.id,
           email: user.emailAddresses[0]?.emailAddress,

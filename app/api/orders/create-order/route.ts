@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { client, writeClient } from '@/sanity/lib/client';
-import { calculateTotalAmount, calculatePaymentSplits, createRazorpayOrder } from '@/lib/razorpay';
+import { calculateTotalAmount, createRazorpayOrder, calculatePaymentSplits } from '@/lib/razorpay';
 import { generateUniqueOrderIdentifier, findPendingOrdersToCleanup, validateOrderData, sanitizeOrderIdentifier } from '@/lib/orderLifecycle';
 
 interface CreateOrderRequest {
@@ -111,9 +111,10 @@ export async function POST(req: NextRequest) {
       if (!stockResponse.ok) {
         const stockError = await stockResponse.json();
         console.error('🔍 Debug: Stock reduction failed:', stockError);
+        // IMPORTANT: Stop order creation if stock reduction fails
         return NextResponse.json({ 
-          error: 'Failed to reduce stock for some items', 
-          details: stockError 
+          error: 'One or more items in your cart are out of stock or have limited quantity.', 
+          details: stockError.errors 
         }, { status: 400 });
       }
 
@@ -163,49 +164,13 @@ export async function POST(req: NextRequest) {
         }, { status: 500 });
       }
 
-      // Create order in database with pending payment status
-      const order = await writeClient.create({
-        _type: 'order',
-        userId: userDetails.userId,
-        userEmail: userDetails.email,
-        orderIdentifier: sanitizedOrderIdentifier,
-        items: orderItems.map((item, index) => ({
-          ...item,
-          _key: `item_${Date.now()}_${index}`
-        })),
-        total: total,
-        paymentMethod: 'online',
-        orderStatus: false, // Will be updated after successful payment
-        status: 'ordered',
-        createdAt: now.toISOString(),
-        updatedAt: now.toISOString(),
-        paymentStatus: false, // Will be updated after successful payment
-        expiresAt: expiresAt.toISOString(),
-        isArchived: false,
-        paymentDetails: {
-          razorpayOrderId: razorpayResult.orderId,
-          razorpayPaymentId: '', // Will be filled after payment
-          razorpaySignature: '', // Will be filled after payment
-          transactionId: '', // Will be filled after payment
-          paymentStatus: 'pending',
-          paidAt: null, // Will be filled after payment
-          splits: paymentSplits.map((split, index) => ({
-            ...split,
-            _key: `split_${Date.now()}_${index}`
-          }))
-        }
-      });
-
-      // Note: History record will be created during payment verification
-      // to ensure proper lifecycle management
-
       return NextResponse.json({
         success: true,
         orderId: razorpayResult.orderId,
-        orderDbId: order._id,
-        orderIdentifier: sanitizedOrderIdentifier,
         amount: total,
         splits: paymentSplits,
+        orderItems: orderItems,
+        sanitizedOrderIdentifier: sanitizedOrderIdentifier,
         message: 'Order created successfully. Proceed with payment.'
       });
 

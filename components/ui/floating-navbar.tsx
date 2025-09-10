@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "./button";
 import { useUser, SignInButton, UserButton, useClerk } from "@clerk/nextjs";
 import { toast } from "sonner";
+import { ShoppingCart } from "lucide-react";
 
 interface NavItem {
   name: string;
@@ -37,22 +38,22 @@ export const FloatingNav = ({
 }) => {
   const { user, isSignedIn } = useUser();
   const { signOut } = useClerk();
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible] = useState(true); // Default to visible
   const [hasShownSuccessToast, setHasShownSuccessToast] = useState(false);
   const router = useRouter();
 
   // Lightweight scroll handler using vanilla JavaScript
   useEffect(() => {
+    let lastScrollY = window.scrollY;
+
     const handleScroll = () => {
-      const scrollY = window.scrollY;
-      const windowHeight = window.innerHeight;
-      const scrollProgress = scrollY / (document.documentElement.scrollHeight - windowHeight);
-      
-      if (scrollProgress < 0.05) {
-        setVisible(false);
+      const currentScrollY = window.scrollY;
+      if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        setVisible(false); // Hide on scroll down
       } else {
-        setVisible(true);
+        setVisible(true); // Show on scroll up
       }
+      lastScrollY = currentScrollY;
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -70,7 +71,6 @@ export const FloatingNav = ({
   // Show success toast when user signs in with allowed domain
   useEffect(() => {
     if (isSignedIn && user && isAllowedDomain()) {
-      // Check if we've already shown the toast for this user session
       const toastShownKey = `toast_shown_${user.id}`;
       const hasShownToast = localStorage.getItem(toastShownKey);
       
@@ -84,10 +84,8 @@ export const FloatingNav = ({
           duration: 3000,
         });
         setHasShownSuccessToast(true);
-        // Mark that we've shown the toast for this user session
         localStorage.setItem(toastShownKey, 'true');
         
-        // Clean up the localStorage entry after 5 minutes
         setTimeout(() => {
           localStorage.removeItem(toastShownKey);
         }, 5 * 60 * 1000);
@@ -98,13 +96,11 @@ export const FloatingNav = ({
   // Auto-delete account if domain is not allowed
   useEffect(() => {
     if (isSignedIn && user && !isAllowedDomain()) {
-      // Delete the account and sign out
       const deleteAccount = async () => {
         try {
           await user.delete();
           await signOut();
           
-          // Show error toast after account deletion
           toast.error("Domain not allowed! Account deleted.", {
             style: {
               background: '#EF4444',
@@ -137,11 +133,11 @@ export const FloatingNav = ({
     <div
       className={cn(
         "fixed top-4 left-1/2 transform -translate-x-1/2 z-50 transition-all duration-300 ease-in-out",
-        visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4",
+        visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-10",
         className
       )}
     >
-      <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-2xl border border-white/20 p-2">
+      <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 p-2">
         <div className="flex items-center gap-2">
           {/* Navigation Items */}
           <div className="flex items-center gap-1">
@@ -151,7 +147,7 @@ export const FloatingNav = ({
                 variant="ghost"
                 size="sm"
                 onClick={() => router.push(item.link)}
-                className="h-10 w-10 p-0 rounded-xl hover:bg-white/80 transition-all duration-200"
+                className="h-10 w-10 p-0 rounded-xl hover:bg-yellow-100/50 transition-all duration-200"
                 title={item.name}
               >
                 {item.icon}
@@ -172,14 +168,18 @@ export const FloatingNav = ({
                 </div>
 
                 {/* Cart Badge */}
-                <div className="bg-gradient-to-r from-orange-400 to-orange-500 text-white px-3 py-1.5 rounded-full text-sm font-bold shadow-md relative">
-                  🛒 {cartCount}
+                <button 
+                  onClick={() => router.push('/cart')}
+                  className="bg-gradient-to-r from-orange-400 to-orange-500 text-white pl-2 pr-3 py-1.5 rounded-full text-sm font-bold shadow-md relative flex items-center gap-1.5 transition-transform duration-200 hover:scale-105 active:scale-95"
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  <span>{cartCount}</span>
                   {cartCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center border-2 border-white">
                       {cartCount}
                     </span>
                   )}
-                </div>
+                </button>
               </>
             )}
 
