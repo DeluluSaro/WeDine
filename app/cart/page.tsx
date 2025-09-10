@@ -183,7 +183,7 @@ const CartPage = () => {
         onPlaceOrder={handlePlaceOrder}
         isLoading={isPlacingOrder}
         userDetails={user ? {
-          id: user.id,
+          userId: user.id,
           email: user.emailAddresses[0]?.emailAddress,
           name: user.fullName || undefined,
           phone: user.phoneNumbers[0]?.phoneNumber

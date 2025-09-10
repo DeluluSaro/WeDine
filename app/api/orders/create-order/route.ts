@@ -26,28 +26,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'User details are required' }, { status: 400 });
     }
 
-    // Generate unique order identifier
+    // Generate unique order identifier with better entropy
     const orderIdentifier = generateUniqueOrderIdentifier(userDetails.userId, cartItems, paymentMethod);
     const sanitizedOrderIdentifier = sanitizeOrderIdentifier(orderIdentifier);
 
-    // Enhanced duplicate prevention - check for similar orders within a time window
-    const timeWindow = 5 * 60 * 1000; // 5 minutes
+    // Enhanced duplicate prevention with stricter checks
+    const timeWindow = 2 * 60 * 1000; // Reduced to 2 minutes for stricter duplicate detection
     const cutoffTime = new Date(Date.now() - timeWindow).toISOString();
     
+    // Check for any recent orders from this user with similar items
     const existingOrders = await client.fetch(`
       *[_type == "order" && userId == $userId && createdAt >= $cutoffTime] {
         _id,
         orderIdentifier,
         createdAt,
         items,
-        paymentMethod
+        paymentMethod,
+        total
       }
     `, { 
       userId: userDetails.userId, 
       cutoffTime 
     });
 
-    // Check for exact identifier match only
+    // Check for exact identifier match
     const exactMatch = existingOrders.find((order: any) => order.orderIdentifier === sanitizedOrderIdentifier);
     if (exactMatch) {
       console.warn('🔍 Debug: Order with exact identifier already exists:', exactMatch);
@@ -58,8 +60,28 @@ export async function POST(req: NextRequest) {
       }, { status: 409 });
     }
 
-    // Removed the similar order check as it was causing false positives
-    // Users should be able to place multiple orders with similar items
+    // Check for similar orders with same items and total amount (additional protection)
+    const cartTotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const similarOrder = existingOrders.find((order: any) => {
+      // Check if items are similar (same food names and quantities)
+      if (order.items && order.items.length === cartItems.length) {
+        const orderItems = order.items.map((item: any) => `${item.foodName}-${item.quantity}`).sort();
+        const cartItemsStr = cartItems.map(item => `${item.foodId.foodName}-${item.quantity}`).sort();
+        
+        return JSON.stringify(orderItems) === JSON.stringify(cartItemsStr) && 
+               Math.abs(order.total - cartTotal) < 1; // Allow small floating point differences
+      }
+      return false;
+    });
+
+    if (similarOrder) {
+      console.warn('🔍 Debug: Similar order already exists:', similarOrder);
+      return NextResponse.json({ 
+        error: 'A similar order was recently placed. Please check your orders.',
+        orderId: similarOrder._id,
+        orderIdentifier: similarOrder.orderIdentifier
+      }, { status: 409 });
+    }
 
     // Clean up old pending orders
     const pendingOrdersToCleanup = await findPendingOrdersToCleanup(userDetails.userId);
@@ -70,6 +92,39 @@ export async function POST(req: NextRequest) {
       } catch (error) {
         console.warn('🔍 Debug: Failed to clean up pending order:', pendingOrder._id, error);
       }
+    }
+
+    // Reduce stock for all items in the order
+    console.log('🔍 Debug: Starting stock reduction for order items');
+    const stockReductionItems = cartItems.map(item => ({
+      foodId: item.foodId._id,
+      quantity: item.quantity
+    }));
+
+    try {
+      const stockResponse = await fetch(`${req.nextUrl.origin}/api/products/reduce-stock`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: stockReductionItems })
+      });
+
+      if (!stockResponse.ok) {
+        const stockError = await stockResponse.json();
+        console.error('🔍 Debug: Stock reduction failed:', stockError);
+        return NextResponse.json({ 
+          error: 'Failed to reduce stock for some items', 
+          details: stockError 
+        }, { status: 400 });
+      }
+
+      const stockResult = await stockResponse.json();
+      console.log('🔍 Debug: Stock reduction successful:', stockResult);
+    } catch (error) {
+      console.error('🔍 Debug: Error during stock reduction:', error);
+      return NextResponse.json({ 
+        error: 'Failed to reduce stock', 
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }, { status: 500 });
     }
 
     const now = new Date();

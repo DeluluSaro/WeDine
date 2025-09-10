@@ -1,6 +1,5 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import Aurora from "@/components/Aurora/Aurora";
 import { 
   CreditCard, 
   Smartphone, 
@@ -54,22 +53,20 @@ export default function Home() {
   const navItems = [
     { name: "Home", link: "/", icon: <HomeIcon /> },
     { name: "Book", link: "/book", icon: <BookIcon /> },
-    { name: "About", link: "/about", icon: <InfoIcon /> },
+    { name: "Orders", link: "/orders", icon: <InfoIcon /> },
     { name: "Contact", link: "/contact", icon: <MailIcon /> },
   ];
   return (
     <div className="min-h-screen font-outfit bg-gradient-to-br from-[var(--color-beige)] via-[var(--color-mint)] to-[var(--color-yellow)]">
        
-      {/* Hero Section with Lightning Background */}
+      {/* Hero Section with Simple Animated Background */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden px-4">
         <div className="absolute inset-0 z-0">
-        
-        <Aurora
-  colorStops={["#FF4B3E", "#FFD23F", "#B2F7EF"]}
-  blend={0.5}
-  amplitude={1.0}
-  speed={2}
-/>
+          {/* Simple CSS-based animated background instead of heavy WebGL */}
+          <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-tomato)]/20 via-[var(--color-coral)]/15 to-[var(--color-yellow)]/25 animate-pulse"></div>
+          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer"></div>
+          <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-[var(--color-yellow)]/10 rounded-full blur-3xl animate-bounce"></div>
+          <div className="absolute bottom-1/4 right-1/4 w-48 h-48 bg-[var(--color-coral)]/10 rounded-full blur-3xl animate-pulse"></div>
         </div>
         <FloatingNav navItems={navItems} />
         <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-tomato)]/60 via-[var(--color-coral)]/40 to-[var(--color-yellow)]/30 z-10 mix-blend-multiply" />

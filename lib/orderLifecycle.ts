@@ -189,33 +189,34 @@ export function generateUniqueOrderIdentifier(
 ): string {
   const timestamp = Date.now();
   const microTimestamp = process.hrtime ? process.hrtime.bigint().toString() : Date.now().toString();
-  const randomSuffix = Math.random().toString(36).substring(2, 12); // Increased length
+  const randomSuffix = Math.random().toString(36).substring(2, 15); // Increased length
   const cryptoRandom = crypto.getRandomValues ? 
-    Array.from(crypto.getRandomValues(new Uint8Array(4)))
+    Array.from(crypto.getRandomValues(new Uint8Array(8))) // Increased to 8 bytes
       .map(b => b.toString(16).padStart(2, '0'))
       .join('') : 
-    Math.random().toString(36).substring(2, 10);
+    Math.random().toString(36).substring(2, 15);
   
-  // Sanitize item names to prevent invalid characters
+  // Create a more robust hash of cart items
   const itemHash = cartItems
     .map(item => {
       const foodName = item.foodId?.foodName || item.foodName || 'unknown';
-      // Use sanitized food name to prevent React component name issues
       const sanitizedName = sanitizeFoodName(foodName);
-      
-      // Ensure it doesn't start with a number
       const finalName = /^\d/.test(sanitizedName) ? `item-${sanitizedName}` : sanitizedName;
       
-      return `${finalName}-${item.quantity}`;
+      // Include price in the hash for better uniqueness
+      return `${finalName}-${item.quantity}-${item.price}`;
     })
     .sort()
     .join('|');
+  
+  // Create a hash of the entire cart for additional uniqueness
+  const cartHash = btoa(JSON.stringify(cartItems)).substring(0, 16);
   
   // Ensure the final identifier is safe for use in React
   const safeUserId = userId.replace(/[^a-zA-Z0-9-]/g, '-');
   const safePaymentMethod = paymentMethod.replace(/[^a-zA-Z0-9-]/g, '-');
   
-  return `order-${safeUserId}-${safePaymentMethod}-${itemHash}-${timestamp}-${microTimestamp}-${randomSuffix}-${cryptoRandom}`;
+  return `order-${safeUserId}-${safePaymentMethod}-${cartHash}-${timestamp}-${microTimestamp}-${randomSuffix}-${cryptoRandom}`;
 }
 
 

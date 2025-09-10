@@ -1,12 +1,14 @@
 "use client";
 import { SignIn } from "@clerk/nextjs";
-import FloatingFoodBackground from "@/components/FloatingFoodBackground";
 
 export default function SignInPage() {
   return (
     <div className="min-h-screen relative overflow-hidden">
-      {/* Interactive Floating Food Background */}
-      <FloatingFoodBackground />
+      {/* Lightweight animated background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-beige)]/20 via-[var(--color-mint)]/15 to-[var(--color-yellow)]/25 animate-pulse"></div>
+      <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer"></div>
+      <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-[var(--color-yellow)]/10 rounded-full blur-3xl animate-bounce"></div>
+      <div className="absolute bottom-1/4 right-1/4 w-48 h-48 bg-[var(--color-coral)]/10 rounded-full blur-3xl animate-pulse"></div>
       
       {/* Gradient overlay for better readability */}
       <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-beige)]/80 via-[var(--color-mint)]/70 to-[var(--color-yellow)]/80 z-10" />
