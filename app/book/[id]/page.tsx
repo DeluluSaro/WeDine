@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { client } from "@/sanity/lib/client";
-import { BookIcon, Filter as FilterIcon, X as CloseIcon, PhoneIcon, HomeIcon, ShoppingCartIcon, ArrowLeft, Heart, Share2, Truck, Shield, Award, CheckCircle, InfoIcon, MailIcon, Clock, MapPin, Phone, Mail, Minus, Plus } from "lucide-react";
+import { BookIcon, Filter as FilterIcon, X as CloseIcon, PhoneIcon, HomeIcon, ShoppingCartIcon, ArrowLeft, Heart, Share2, Truck, Shield, Award, CheckCircle, InfoIcon, MailIcon, Clock, MapPin, Phone, Mail, Minus, Plus, History, BookOpen } from "lucide-react";
 import { FloatingNav } from "@/components/ui/floating-navbar";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter, useParams, usePathname } from "next/navigation";
@@ -155,7 +155,8 @@ const FoodDetailPage = () => {
 
   const navItems = [
     { name: "Home", link: "/", icon: <HomeIcon /> },
-    { name: "Book", link: "/book", icon: <BookIcon /> },
+    { name: "Book", link: "/book", icon: <BookOpen /> },
+    { name: "History", link: "/orders", icon: <History /> },
     { name: "About", link: "/about", icon: <InfoIcon /> },
     { name: "Contact", link: "/contact", icon: <MailIcon /> },
   ];

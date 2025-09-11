@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { FloatingNav } from "@/components/ui/floating-navbar";
-import { BookIcon, HomeIcon, InfoIcon, MailIcon, CheckCircle, Clock, Truck, Package, History, Zap } from "lucide-react";
+import { BookIcon, HomeIcon, InfoIcon, MailIcon, CheckCircle, Clock, Truck, Package, History, Zap, BookOpen } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 
@@ -70,8 +70,8 @@ const OrdersPage = () => {
 
   const navItems = [
     { name: "Home", link: "/", icon: <HomeIcon /> },
-    { name: "Book", link: "/book", icon: <BookIcon /> },
-    { name: "Orders", link: "/orders", icon: <InfoIcon /> },
+    { name: "Book", link: "/book", icon: <BookOpen /> },
+    { name: "History", link: "/orders", icon: <History /> },
     { name: "Contact", link: "/contact", icon: <MailIcon /> },
   ];
 

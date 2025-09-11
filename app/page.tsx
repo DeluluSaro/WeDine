@@ -13,7 +13,8 @@ import {
   BookIcon,
   InfoIcon,
   MailIcon,
-
+  History,
+  BookOpen
 } from "lucide-react";
 import { FloatingNav } from "@/components/ui/floating-navbar";
 import { useRouter } from "next/navigation";
@@ -52,8 +53,8 @@ export default function Home() {
 
   const navItems = [
     { name: "Home", link: "/", icon: <HomeIcon /> },
-    { name: "Book", link: "/book", icon: <BookIcon /> },
-    { name: "Orders", link: "/orders", icon: <InfoIcon /> },
+    { name: "Book", link: "/book", icon: <BookOpen /> },
+    { name: "History", link: "/orders", icon: <History /> },
     { name: "Contact", link: "/contact", icon: <MailIcon /> },
   ];
   return (
