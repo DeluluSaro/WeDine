@@ -45,9 +45,7 @@ async function handleCleanupRequest(req: NextRequest): Promise<NextResponse> {
     console.log(`[${timestamp}] Authentication passed, proceeding with cleanup`);
 
     // Call the cleanup endpoint
-    const baseUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : req.nextUrl.origin;
+        const baseUrl = req.nextUrl.origin;
     
     const cleanupUrl = `${baseUrl}/api/orders/cleanup`;
     
