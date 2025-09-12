@@ -257,6 +257,58 @@ const FoodDetailPage = () => {
                 <span className="text-xs font-medium text-gray-700">HD Quality</span>
               </div>
             </div>
+
+            {/* Description Section - MOVED TO LEFT COLUMN */}
+            {food.description && (
+              <div className="bg-gradient-to-br from-white/80 to-white/60 backdrop-blur-lg rounded-3xl p-8 border border-yellow-200/50 shadow-xl hover:shadow-2xl transition-all duration-300">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-full flex items-center justify-center">
+                    <BookIcon className="w-4 h-4 text-yellow-900" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-yellow-800">About This Dish</h3>
+                </div>
+                <p className="text-yellow-700 leading-relaxed text-lg">{food.description}</p>
+              </div>
+            )}
+
+            {/* Nutrition Information - MOVED TO LEFT COLUMN */}
+            {(food.calories || food.protein || food.carbs || food.fat) && (
+              <div className="bg-gradient-to-br from-purple-50 to-indigo-50 backdrop-blur-lg rounded-3xl p-6 border border-purple-200/50 shadow-lg">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-8 h-8 bg-gradient-to-r from-purple-400 to-indigo-500 rounded-full flex items-center justify-center">
+                    <Award className="w-4 h-4 text-white" />
+                  </div>
+                  <h4 className="text-xl font-bold text-purple-800">Nutrition Facts</h4>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {food.calories && (
+                    <div className="text-center p-4 bg-white/60 rounded-2xl border border-purple-100">
+                      <div className="text-2xl font-bold text-purple-800">{food.calories}</div>
+                      <div className="text-sm text-purple-600 font-medium">Calories</div>
+                    </div>
+                  )}
+                  {food.protein && (
+                    <div className="text-center p-4 bg-white/60 rounded-2xl border border-purple-100">
+                      <div className="text-2xl font-bold text-purple-800">{food.protein}g</div>
+                      <div className="text-sm text-purple-600 font-medium">Protein</div>
+                    </div>
+                  )}
+                  {food.carbs && (
+                    <div className="text-center p-4 bg-white/60 rounded-2xl border border-purple-100">
+                      <div className="text-2xl font-bold text-purple-800">{food.carbs}g</div>
+                      <div className="text-sm text-purple-600 font-medium">Carbs</div>
+                    </div>
+                  )}
+                  {food.fat && (
+                    <div className="text-center p-4 bg-white/60 rounded-2xl border border-purple-100">
+                      <div className="text-2xl font-bold text-purple-800">{food.fat}g</div>
+                      <div className="text-sm text-purple-600 font-medium">Fat</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
           </div>
 
           <div className="space-y-6">
@@ -324,19 +376,6 @@ const FoodDetailPage = () => {
               </div>
             </div>
 
-            {/* Description Section */}
-            {food.description && (
-              <div className="bg-gradient-to-br from-white/80 to-white/60 backdrop-blur-lg rounded-3xl p-8 border border-yellow-200/50 shadow-xl hover:shadow-2xl transition-all duration-300">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-full flex items-center justify-center">
-                    <BookIcon className="w-4 h-4 text-yellow-900" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-yellow-800">About This Dish</h3>
-                </div>
-                <p className="text-yellow-700 leading-relaxed text-lg">{food.description}</p>
-              </div>
-            )}
-
             {/* Ingredients & Allergens Section */}
             {(food.ingredients && food.ingredients.length > 0) || (food.allergens && food.allergens.length > 0) ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -377,44 +416,6 @@ const FoodDetailPage = () => {
                 )}
               </div>
             ) : null}
-
-            {/* Nutrition Information */}
-            {(food.calories || food.protein || food.carbs || food.fat) && (
-              <div className="bg-gradient-to-br from-purple-50 to-indigo-50 backdrop-blur-lg rounded-3xl p-6 border border-purple-200/50 shadow-lg">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-8 h-8 bg-gradient-to-r from-purple-400 to-indigo-500 rounded-full flex items-center justify-center">
-                    <Award className="w-4 h-4 text-white" />
-                  </div>
-                  <h4 className="text-xl font-bold text-purple-800">Nutrition Facts</h4>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {food.calories && (
-                    <div className="text-center p-4 bg-white/60 rounded-2xl border border-purple-100">
-                      <div className="text-2xl font-bold text-purple-800">{food.calories}</div>
-                      <div className="text-sm text-purple-600 font-medium">Calories</div>
-                    </div>
-                  )}
-                  {food.protein && (
-                    <div className="text-center p-4 bg-white/60 rounded-2xl border border-purple-100">
-                      <div className="text-2xl font-bold text-purple-800">{food.protein}g</div>
-                      <div className="text-sm text-purple-600 font-medium">Protein</div>
-                    </div>
-                  )}
-                  {food.carbs && (
-                    <div className="text-center p-4 bg-white/60 rounded-2xl border border-purple-100">
-                      <div className="text-2xl font-bold text-purple-800">{food.carbs}g</div>
-                      <div className="text-sm text-purple-600 font-medium">Carbs</div>
-                    </div>
-                  )}
-                  {food.fat && (
-                    <div className="text-center p-4 bg-white/60 rounded-2xl border border-purple-100">
-                      <div className="text-2xl font-bold text-purple-800">{food.fat}g</div>
-                      <div className="text-sm text-purple-600 font-medium">Fat</div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
 
             {/* Food Type & Preparation Time */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
