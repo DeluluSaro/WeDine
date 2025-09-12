@@ -1,27 +1,16 @@
-/**
- * DEPRECATED: Order API Routes
- * 
- * POST /api/orders - DISABLED (use /api/orders/create-order instead)
- * GET /api/orders - ACTIVE (for fetching orders)
- * 
- * The POST method has been disabled to prevent duplicate orders.
- * All order creation should use /api/orders/create-order which includes
- * proper duplicate prevention and enhanced features.
- */
-
 import { NextRequest, NextResponse } from 'next/server';
-import { writeClient, client } from '@/sanity/lib/client';
-import { calculateTotalAmount } from '@/lib/razorpay';
+import { client } from '@/sanity/lib/client';
 
-export async function POST(req: NextRequest) {
-  // DISABLED: This endpoint is deprecated. Use /api/orders/create-order instead.
-  // This prevents duplicate orders and ensures proper duplicate prevention.
-  return NextResponse.json({ 
-    error: 'This endpoint is deprecated. Please use /api/orders/create-order for creating orders.',
-    message: 'The old /api/orders endpoint has been disabled to prevent duplicate orders. All order creation should go through /api/orders/create-order which includes proper duplicate prevention.'
-  }, { status: 410 }); // 410 Gone - indicates the resource is permanently unavailable
-}
-
+/**
+ * GET /api/orders
+ * Fetches a user's orders from the 'orderHistory' collection.
+ * 
+ * Query Params:
+ * - userId: The ID of the user whose orders are to be fetched.
+ * - type: 'active' | 'history'. Defaults to 'active'.
+ *    - 'active': Fetches orders with statuses like 'ordered', 'preparing', etc.
+ *    - 'history': Fetches completed or cancelled orders.
+ */
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -32,56 +21,41 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
 
+    // Define the statuses that are considered "active"
+    const activeStatuses = ['ordered', 'order accepted', 'preparing', 'out for delivery'];
+
+    // All queries now correctly target the 'orderHistory' collection.
+    let query;
+    const queryParams: { userId: string; activeStatuses?: string[] } = { userId };
+
     if (type === 'history') {
-      const orders = await client.fetch(`
-        *[_type == "orderHistory" && userId == $userId] | order(createdAt desc) {
-          _id,
-          userId,
-          orderId,
-          userEmail,
-          items,
-          total,
-          paymentMethod,
-          orderStatus,
-          status,
-          createdAt,
-          updatedAt,
-          paymentStatus,
-          archivedAt,
-          originalOrderId,
-          lifecycleNotes,
-          paymentDetails
-        }
-      `, { userId });
-      return NextResponse.json({ orders });
-    } else {
-      const orders = await client.fetch(`
-        *[_type == "order" && userId == $userId && isArchived != true] | order(createdAt desc) {
-          _id,
-          userId,
-          orderId,
-          userEmail,
-          items,
-          total,
-          paymentMethod,
-          orderStatus,
-          status,
-          createdAt,
-          updatedAt,
-          paymentStatus,
-          expiresAt,
-          isArchived,
-          archivedAt,
-          paymentDetails
-        }
-      `, { userId });
-      return NextResponse.json({ orders });
+      // 'history' shows all orders that are NOT in an active state.
+      query = `*[_type == "orderHistory" && userId == $userId && !(status in $activeStatuses)] | order(createdAt desc)`
+      queryParams.activeStatuses = activeStatuses;
+    } else { // 'active'
+      // 'active' shows all orders that ARE in an active state.
+      query = `*[_type == "orderHistory" && userId == $userId && status in $activeStatuses] | order(createdAt desc)`
+      queryParams.activeStatuses = activeStatuses;
     }
+
+    // Fetch all fields to ensure frontend has what it needs
+    const orders = await client.fetch(`${query}{...}`, queryParams);
+    
+    return NextResponse.json({ orders });
+
   } catch (error: unknown) {
     const err = error as Error;
     console.error('Order fetch error:', err);
     return NextResponse.json({ 
-      error: err.message 
+      error: 'Failed to fetch orders',
+      details: err.message 
     }, { status: 500 });
   }
-} 
+}
+
+// The POST method is deprecated and removed to keep this API clean and focused on fetching orders.
+export async function POST(req: NextRequest) {
+  return NextResponse.json({ 
+    error: 'This endpoint is deprecated. Please use the new, separate endpoints for order creation.'
+  }, { status: 410 });
+}

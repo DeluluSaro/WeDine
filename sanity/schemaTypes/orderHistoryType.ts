@@ -104,11 +104,23 @@ export const orderHistoryType = defineType({
       description: "True if payment is completed via Razorpay.",
     }),
     defineField({
+      name: "userDetails",
+      type: "object",
+      title: "User Details",
+      description: "User contact and delivery information",
+      fields: [
+        { name: "name", type: "string", title: "Name" },
+        { name: "phone", type: "string", title: "Phone Number" },
+        { name: "address", type: "text", title: "Delivery Address" },
+      ],
+    }),
+    defineField({
       name: "originalOrderId",
       type: "string",
       title: "Original Order ID",
-      description: "Reference to the original order document ID for tracking",
-      validation: Rule => Rule.required()
+      description: "Legacy field. Not required for new orders.",
+      // This field is no longer required, simplifying the logic.
+      // validation: Rule => Rule.required()
     }),
     defineField({
       name: "lifecycleNotes",
@@ -142,38 +154,9 @@ export const orderHistoryType = defineType({
           initialValue: "pending"
         },
         { name: "paidAt", type: "datetime", title: "Paid At" },
-        {
-          name: "splits",
-          type: "array",
-          title: "Payment Splits",
-          description: "Multi-vendor payment splits",
-          of: [
-            {
-              type: "object",
-              fields: [
-                { name: "shopId", type: "string", title: "Shop ID" },
-                { name: "shopName", type: "string", title: "Shop Name" },
-                { name: "ownerMobile", type: "string", title: "Owner Mobile" },
-                { name: "splitAmount", type: "number", title: "Split Amount" },
-                { name: "transferId", type: "string", title: "Transfer ID" },
-                { 
-                  name: "transferStatus", 
-                  type: "string", 
-                  title: "Transfer Status",
-                  options: {
-                    list: [
-                      { title: "Pending", value: "pending" },
-                      { title: "Completed", value: "completed" },
-                      { title: "Failed", value: "failed" },
-                    ],
-                  },
-                  initialValue: "pending"
-                },
-                { name: "transferredAt", type: "datetime", title: "Transferred At" },
-              ],
-            },
-          ],
-        },
+        { name: "transferAmount", type: "number", title: "Transfer Amount", description: "Amount to be transferred to the vendor" },
+        { name: "razorpayAccountId", type: "string", title: "Razorpay Account ID", description: "Vendor's Razorpay account ID for transfers" },
+        
       ],
     }),
   ],

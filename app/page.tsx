@@ -21,11 +21,14 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { useEffect } from "react";
 import ReviewCarousel from "@/components/ReviewCarousel";
+import { useCart } from "@/components/CartContext";
 
 
 export default function Home() {
   const router = useRouter();
   const { isSignedIn, isLoaded } = useAuth();
+  const { cartItems } = useCart();
+  const cartCount = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
 
   // Redirect to sign-in if not authenticated
   useEffect(() => {
@@ -69,7 +72,7 @@ export default function Home() {
           <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-[var(--color-yellow)]/10 rounded-full blur-3xl animate-bounce"></div>
           <div className="absolute bottom-1/4 right-1/4 w-48 h-48 bg-[var(--color-coral)]/10 rounded-full blur-3xl animate-pulse"></div>
         </div>
-        <FloatingNav navItems={navItems} />
+        <FloatingNav navItems={navItems} showBadges={true} cartCount={cartCount} eWalletAmount={500} />
         <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-tomato)]/60 via-[var(--color-coral)]/40 to-[var(--color-yellow)]/30 z-10 mix-blend-multiply" />
         <div className="relative z-20 text-center px-4 max-w-4xl mx-auto">
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold mb-4 md:mb-6 text-white drop-shadow-lg leading-tight">

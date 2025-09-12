@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WeDine Payment Test</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 WeDine Payment Test</h1>
+        
+        <div id="status" class="status info">
+            Ready to test payments. Fill in the details below and click a test button.
+        </div>
+
+        <form id="paymentForm">
+            <div class="form-group">
+                <label for="userId">User ID:</label>
+                <input type="text" id="userId" value="test_user_123" required>
+            </div>
+
+            <div class="form-group">
+                <label for="userEmail">Email:</label>
+                <input type="email" id="userEmail" value="test@example.com" required>
+            </div>
+
+            <div class="form-group">
+                <label for="userName">Name:</label>
+                <input type="text" id="userName" value="Test User" required>
+            </div>
+
+            <div class="form-group">
+                <label for="userPhone">Phone:</label>
+                <input type="text" id="userPhone" value="+1234567890" required>
+            </div>
+
+            <div class="form-group">
+                <label for="userAddress">Address:</label>
+                <textarea id="userAddress" rows="3" required>123 Test Street, Test City</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="paymentMethod">Payment Method:</label>
+                <select id="paymentMethod">
+                    <option value="cod">Cash on Delivery (COD)</option>
+                    <option value="online">Online Payment (Razorpay)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="itemName">Food Item Name:</label>
+                <input type="text" id="itemName" value="Test Pizza" required>
+            </div>
+
+            <div class="form-group">
+                <label for="itemPrice">Item Price:</label>
+                <input type="number" id="itemPrice" value="299" required>
+            </div>
+
+            <div class="form-group">
+                <label for="itemQuantity">Quantity:</label>
+                <input type="number" id="itemQuantity" value="2" required>
+            </div>
+
+            <div class="form-group">
+                <label for="shopName">Shop Name:</label>
+                <input type="text" id="shopName" value="Test Shop" required>
+            </div>
+        </form>
+
+        <div>
+            <button onclick="testCODPayment()" id="codBtn">Test COD Payment</button>
+            <button onclick="testOnlinePayment()" id="onlineBtn">Test Online Payment</button>
+            <button onclick="testManualVerification()" id="manualBtn">Test Manual Verification</button>
+            <button onclick="getPaymentStatus()" id="statusBtn">Get Payment Status</button>
+            <button onclick="debugPayments()" id="debugBtn">Debug Payments</button>
+            <button onclick="clearLog()" id="clearBtn">Clear Log</button>
+        </div>
+
+        <div id="log" class="log">
+            <div>Payment Test Log:</div>
+            <div id="logContent"></div>
+        </div>
+    </div>
+
+    <script src="payment-handler.js"></script>
+    <script>
+        let currentOrderIds = [];
+
+        function log(message, type = 'info') {
+            const logContent = document.getElementById('logContent');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `[${timestamp}] ${message}`;
+            logEntry.style.color = type === 'error' ? '#dc3545' : type === 'success' ? '#28a745' : '#6c757d';
+            logContent.appendChild(logEntry);
+            logContent.scrollTop = logContent.scrollHeight;
+        }
+
+        function updateStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+
+        function getFormData() {
+            return {
+                cartItems: [{
+                    _id: 'test_cart_' + Date.now(),
+                    quantity: parseInt(document.getElementById('itemQuantity').value),
+                    price: parseFloat(document.getElementById('itemPrice').value),
+                    foodId: {
+                        _id: 'test_food_' + Date.now(),
+                        foodName: document.getElementById('itemName').value,
+                        shopRef: {
+                            _id: 'test_shop_' + Date.now(),
+                            shopName: document.getElementById('shopName').value
+                        }
+                    }
+                }],
+                userDetails: {
+                    userId: document.getElementById('userId').value,
+                    email: document.getElementById('userEmail').value,
+                    name: document.getElementById('userName').value,
+                    phone: document.getElementById('userPhone').value,
+                    address: document.getElementById('userAddress').value
+                }
+            };
+        }
+
+        async function testCODPayment() {
+            try {
+                updateStatus('Processing COD payment...', 'info');
+                log('Starting COD payment test...');
+                
+                const { cartItems, userDetails } = getFormData();
+                const result = await paymentHandler.processPayment(cartItems, userDetails, 'cod');
+                
+                log('COD payment successful: ' + JSON.stringify(result), 'success');
+                updateStatus('COD payment successful!', 'success');
+                
+            } catch (error) {
+                log('COD payment failed: ' + error.message, 'error');
+                updateStatus('COD payment failed: ' + error.message, 'error');
+            }
+        }
+
+        async function testOnlinePayment() {
+            try {
+                updateStatus('Processing online payment...', 'info');
+                log('Starting online payment test...');
+                
+                const { cartItems, userDetails } = getFormData();
+                const result = await paymentHandler.processPayment(cartItems, userDetails, 'online');
+                
+                log('Online payment successful: ' + JSON.stringify(result), 'success');
+                updateStatus('Online payment successful!', 'success');
+                
+                // Store order IDs for manual verification
+                if (result.updatedOrders) {
+                    currentOrderIds = result.updatedOrders.map(o => o.orderId);
+                    log('Order IDs stored for manual verification: ' + currentOrderIds.join(', '));
+                }
+                
+            } catch (error) {
+                log('Online payment failed: ' + error.message, 'error');
+                updateStatus('Online payment failed: ' + error.message, 'error');
+            }
+        }
+
+        async function testManualVerification() {
+            try {
+                updateStatus('Testing manual verification...', 'info');
+                log('Starting manual verification test...');
+                
+                if (currentOrderIds.length === 0) {
+                    // Create some test order IDs
+                    currentOrderIds = ['test_order_' + Date.now()];
+                    log('Using test order IDs: ' + currentOrderIds.join(', '));
+                }
+                
+                const result = await paymentHandler.verifyPaymentManually(currentOrderIds);
+                
+                log('Manual verification successful: ' + JSON.stringify(result), 'success');
+                updateStatus('Manual verification successful!', 'success');
+                
+            } catch (error) {
+                log('Manual verification failed: ' + error.message, 'error');
+                updateStatus('Manual verification failed: ' + error.message, 'error');
+            }
+        }
+
+        async function getPaymentStatus() {
+            try {
+                updateStatus('Getting payment status...', 'info');
+                log('Fetching payment status...');
+                
+                const userId = document.getElementById('userId').value;
+                const orders = await paymentHandler.getPaymentStatus(userId);
+                
+                log('Payment status: ' + JSON.stringify(orders, null, 2), 'success');
+                updateStatus(`Found ${orders.length} successful payments`, 'success');
+                
+            } catch (error) {
+                log('Failed to get payment status: ' + error.message, 'error');
+                updateStatus('Failed to get payment status: ' + error.message, 'error');
+            }
+        }
+
+        async function debugPayments() {
+            try {
+                updateStatus('Debugging payments...', 'info');
+                log('Starting payment debug...');
+                
+                const userId = document.getElementById('userId').value;
+                const debugInfo = await paymentHandler.debugPayment(userId);
+                
+                log('Debug info: ' + JSON.stringify(debugInfo, null, 2), 'success');
+                updateStatus('Debug completed. Check log for details.', 'success');
+                
+            } catch (error) {
+                log('Debug failed: ' + error.message, 'error');
+                updateStatus('Debug failed: ' + error.message, 'error');
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('logContent').innerHTML = '<div>Payment Test Log:</div>';
+            updateStatus('Log cleared', 'info');
+        }
+
+        // Initialize
+        log('Payment test page loaded. Ready to test!');
+        updateStatus('Ready to test payments. Fill in the details and click a test button.', 'info');
+    </script>
+</body>
+</html>

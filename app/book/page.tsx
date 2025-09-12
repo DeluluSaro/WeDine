@@ -7,6 +7,7 @@ import { FloatingNav } from "@/components/ui/floating-navbar";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Image from 'next/image';
+import { useCart } from "@/components/CartContext";
 
 // COLOR PALETTE
 const COLORS = {
@@ -76,6 +77,8 @@ const BookPage = () => {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [selectedFoodTypes, setSelectedFoodTypes] = useState<string[]>([]);
   const [notificationStatus, setNotificationStatus] = useState<{[key: string]: string}>({});
+  const { cartItems } = useCart();
+  const cartCount = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -204,7 +207,7 @@ const BookPage = () => {
 
   return (
     <div className="min-h-screen" style={{background: `linear-gradient(180deg, ${COLORS.yellowLight}, ${COLORS.offWhite} 80%)`}}>
-      <FloatingNav navItems={navItems} showBadges />
+      <FloatingNav navItems={navItems} showBadges={true} cartCount={cartCount} eWalletAmount={500} />
       
       <div className="lg:hidden fixed top-20 left-4 z-40">
         <button
