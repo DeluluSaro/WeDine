@@ -14,7 +14,8 @@ import {
   InfoIcon,
   MailIcon,
   History,
-  BookOpen
+  BookOpen,
+  Wallet
 } from "lucide-react";
 import { FloatingNav } from "@/components/ui/floating-navbar";
 import { useRouter } from "next/navigation";
@@ -58,6 +59,7 @@ export default function Home() {
     { name: "Home", link: "/", icon: <HomeIcon /> },
     { name: "Book", link: "/book", icon: <BookOpen /> },
     { name: "History", link: "/orders", icon: <History /> },
+    { name: "Wallet", link: "/wallet", icon: <Wallet /> },
     { name: "Contact", link: "/contact", icon: <MailIcon /> },
   ];
   return (

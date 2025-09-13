@@ -6,7 +6,8 @@ import { shopType } from './ShopName'
 import { reviewType } from './ReviewType'
 import { cartItemType } from './AddtoCart';
 import { adminCredentialsType } from './adminCredentials';
+import walletType from './walletType';
 
 export const schema: { types: SchemaTypeDefinition[] } = {
-  types: [shopType, foodItemType, orderType, orderHistoryType, reviewType, cartItemType, adminCredentialsType],
+  types: [shopType, foodItemType, orderType, orderHistoryType, reviewType, cartItemType, adminCredentialsType, walletType],
 }

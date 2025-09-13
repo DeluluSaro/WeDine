@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { client } from "@/sanity/lib/client";
-import { BookIcon, HomeIcon, ShoppingCartIcon, ArrowLeft, Heart, Share2, Truck, Shield, Award, CheckCircle, InfoIcon, MailIcon, Clock, MapPin, Minus, Plus, History, BookOpen, X } from "lucide-react";
+import { BookIcon, HomeIcon, ShoppingCartIcon, ArrowLeft, Heart, Share2, Truck, Shield, Award, CheckCircle, InfoIcon, MailIcon, Clock, MapPin, Minus, Plus, History, BookOpen, X, Wallet } from "lucide-react";
 import { FloatingNav } from "@/components/ui/floating-navbar";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter, useParams } from "next/navigation";
@@ -151,6 +151,7 @@ const FoodDetailPage = () => {
     { name: "Home", link: "/", icon: <HomeIcon /> },
     { name: "Book", link: "/book", icon: <BookOpen /> },
     { name: "History", link: "/orders", icon: <History /> },
+    { name: "Wallet", link: "/wallet", icon: <Wallet /> },
     { name: "About", link: "/about", icon: <InfoIcon /> },
     { name: "Contact", link: "/contact", icon: <MailIcon /> },
   ];

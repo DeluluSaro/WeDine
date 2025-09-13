@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { client } from "@/sanity/lib/client";
-import { BookIcon, Filter as FilterIcon, X as CloseIcon, PhoneIcon, HomeIcon, ShoppingCartIcon, History, BookOpen } from "lucide-react";
+import { BookIcon, Filter as FilterIcon, X as CloseIcon, PhoneIcon, HomeIcon, ShoppingCartIcon, History, BookOpen, Wallet } from "lucide-react";
 import { FloatingNav } from "@/components/ui/floating-navbar";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
@@ -190,6 +190,7 @@ const BookPage = () => {
     { name: "Home", link: "/", icon: <HomeIcon /> },
     { name: "Book", link: "/book", icon: <BookOpen /> },
     { name: "History", link: "/orders", icon: <History /> },
+    { name: "Wallet", link: "/wallet", icon: <Wallet /> },
     { name: "Cart", link: "/cart", icon: <ShoppingCartIcon /> },
   ];
 

@@ -1468,5 +1468,127 @@
     ],
     "name": "adminCredentials",
     "type": "document"
+  },
+  {
+    "fields": [
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "userEmail",
+        "type": "string"
+      },
+      {
+        "initialValue": 0,
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              },
+              {
+                "flag": "min",
+                "constraint": 0
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "balance",
+        "type": "number",
+        "title": "Wallet Balance"
+      },
+      {
+        "of": [
+          {
+            "fields": [
+              {
+                "options": {
+                  "list": [
+                    {
+                      "title": "Add Money",
+                      "value": "add"
+                    },
+                    {
+                      "title": "Payment",
+                      "value": "payment"
+                    },
+                    {
+                      "title": "Refund",
+                      "value": "refund"
+                    }
+                  ]
+                },
+                "name": "type",
+                "type": "string",
+                "title": "Transaction Type"
+              },
+              {
+                "validation": [
+                  {
+                    "rules": [
+                      {
+                        "flag": "presence",
+                        "constraint": "required"
+                      },
+                      {
+                        "flag": "min",
+                        "constraint": 0
+                      }
+                    ],
+                    "level": "error"
+                  }
+                ],
+                "name": "amount",
+                "type": "number"
+              },
+              {
+                "name": "description",
+                "type": "string"
+              },
+              {
+                "name": "orderId",
+                "type": "string",
+                "title": "Order ID"
+              },
+              {
+                "name": "paymentId",
+                "type": "string",
+                "title": "Payment ID"
+              },
+              {
+                "name": "timestamp",
+                "type": "datetime"
+              }
+            ],
+            "type": "object"
+          }
+        ],
+        "name": "transactions",
+        "type": "array",
+        "title": "Wallet Transactions"
+      },
+      {
+        "initialValue": true,
+        "name": "isActive",
+        "type": "boolean"
+      },
+      {
+        "name": "lastUpdated",
+        "type": "datetime"
+      }
+    ],
+    "name": "wallet",
+    "type": "document",
+    "title": "User Wallet"
   }
 ]

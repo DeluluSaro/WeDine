@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "./button";
 import { useUser, SignInButton, UserButton, useClerk } from "@clerk/nextjs";
 import { toast } from "sonner";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, Wallet } from "lucide-react";
 
 interface NavItem {
   name: string;
@@ -179,6 +179,15 @@ export const FloatingNav = ({
                       {cartCount}
                     </span>
                   )}
+                </button>
+
+                {/* Wallet Button */}
+                <button 
+                  onClick={() => router.push('/wallet')}
+                  className="bg-gradient-to-r from-green-400 to-green-500 text-white p-2 rounded-full shadow-md transition-transform duration-200 hover:scale-105 active:scale-95"
+                  title="Wallet"
+                >
+                  <Wallet className="w-4 h-4" />
                 </button>
               </>
             )}

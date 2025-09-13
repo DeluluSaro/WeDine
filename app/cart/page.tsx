@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { FloatingNav } from '@/components/ui/floating-navbar';
-import { ShoppingCart, Home, Book, Trash2, Plus, Minus, ArrowLeft, History, BookOpen } from 'lucide-react';
+import { ShoppingCart, Home, Book, Trash2, Plus, Minus, ArrowLeft, History, BookOpen, Wallet } from 'lucide-react';
 import { useCart, CartItem } from '../../components/CartContext';
 import BuyNowPopup from '@/components/BuyNowPopup';
 import Image from 'next/image';
@@ -50,6 +50,7 @@ const CartPage = () => {
     { name: 'Home', link: '/', icon: <Home /> },
     { name: 'Book', link: '/book', icon: <BookOpen /> },
     { name: 'History', link: '/orders', icon: <History /> },
+    { name: 'Wallet', link: '/wallet', icon: <Wallet /> },
     { name: 'Cart', link: '/cart', icon: <ShoppingCart /> },
   ];
 
