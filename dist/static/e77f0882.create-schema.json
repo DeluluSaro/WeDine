@@ -1,0 +1,1850 @@
+[
+  {
+    "fields": [
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "shopName",
+        "type": "string"
+      },
+      {
+        "name": "latitude",
+        "type": "number"
+      },
+      {
+        "name": "longitude",
+        "type": "number"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "regex",
+                "constraint": {
+                  "pattern": "/^\\+91-[0-9]{10}$/",
+                  "invert": false
+                }
+              }
+            ],
+            "level": "warning",
+            "message": "Please use format: +91-XXXXXXXXXX"
+          }
+        ],
+        "description": "Mobile number for SMS notifications (format: +91-XXXXXXXXXX)",
+        "name": "ownerMobile",
+        "type": "string",
+        "title": "Owner Mobile Number (SMS)"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "regex",
+                "constraint": {
+                  "pattern": "/^\\+91[0-9]{10}$/",
+                  "invert": false
+                }
+              }
+            ],
+            "level": "warning",
+            "message": "Please use format: +918754502573 (no hyphen)"
+          }
+        ],
+        "description": "Mobile number for payment transfers (format: +918754502573 - no hyphen)",
+        "name": "paymentMobile",
+        "type": "string",
+        "title": "Payment Mobile Number"
+      },
+      {
+        "name": "ownerEmail",
+        "type": "string"
+      },
+      {
+        "description": "Razorpay account ID for payment transfers",
+        "name": "razorpayAccountId",
+        "type": "string",
+        "title": "Razorpay Account ID"
+      },
+      {
+        "name": "address",
+        "type": "text",
+        "title": "Shop Address"
+      },
+      {
+        "name": "description",
+        "type": "text",
+        "title": "Shop Description"
+      },
+      {
+        "options": {
+          "list": [
+            {
+              "title": "Restaurant",
+              "value": "restaurant"
+            },
+            {
+              "title": "Cafe",
+              "value": "cafe"
+            },
+            {
+              "title": "Food Truck",
+              "value": "food_truck"
+            },
+            {
+              "title": "Bakery",
+              "value": "bakery"
+            },
+            {
+              "title": "Street Food",
+              "value": "street_food"
+            },
+            {
+              "title": "Other",
+              "value": "other"
+            }
+          ]
+        },
+        "name": "category",
+        "type": "string",
+        "title": "Shop Category"
+      },
+      {
+        "initialValue": true,
+        "description": "Whether the shop is currently active and accepting orders",
+        "name": "isActive",
+        "type": "boolean"
+      },
+      {
+        "description": "e.g., '9:00 AM - 10:00 PM'",
+        "name": "openingHours",
+        "type": "string"
+      },
+      {
+        "name": "contactNumber",
+        "type": "string"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "min",
+                "constraint": 0
+              },
+              {
+                "flag": "max",
+                "constraint": 5
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "rating",
+        "type": "number",
+        "title": "Average Rating"
+      },
+      {
+        "initialValue": 0,
+        "name": "totalReviews",
+        "type": "number"
+      }
+    ],
+    "name": "shop",
+    "type": "document"
+  },
+  {
+    "fields": [
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "foodName",
+        "type": "string"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "to": [
+          {
+            "type": "shop"
+          }
+        ],
+        "name": "shopRef",
+        "type": "reference",
+        "title": "Shop"
+      },
+      {
+        "name": "image",
+        "type": "image"
+      },
+      {
+        "name": "category",
+        "type": "string"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              },
+              {
+                "flag": "min",
+                "constraint": 0
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "price",
+        "type": "number"
+      },
+      {
+        "options": {
+          "list": [
+            {
+              "title": "Beverages",
+              "value": "beverages"
+            },
+            {
+              "title": "Snacks",
+              "value": "snacks"
+            },
+            {
+              "title": "Juices",
+              "value": "juices"
+            },
+            {
+              "title": "Breakfast",
+              "value": "breakfast"
+            },
+            {
+              "title": "Lunch",
+              "value": "lunch"
+            },
+            {
+              "title": "Dinner",
+              "value": "dinner"
+            },
+            {
+              "title": "Night Snacks",
+              "value": "night_snacks"
+            }
+          ]
+        },
+        "name": "foodType",
+        "type": "string"
+      },
+      {
+        "name": "quantity",
+        "type": "number"
+      },
+      {
+        "name": "description",
+        "type": "text"
+      },
+      {
+        "of": [
+          {
+            "type": "string"
+          }
+        ],
+        "name": "ingredients",
+        "type": "array"
+      },
+      {
+        "of": [
+          {
+            "type": "string"
+          }
+        ],
+        "name": "allergens",
+        "type": "array"
+      },
+      {
+        "name": "preparationTime",
+        "type": "number",
+        "title": "Preparation Time (minutes)"
+      },
+      {
+        "name": "rating",
+        "type": "number"
+      },
+      {
+        "name": "reviews",
+        "type": "number",
+        "title": "Number of Reviews"
+      },
+      {
+        "name": "spicyLevel",
+        "type": "number"
+      },
+      {
+        "name": "isVegetarian",
+        "type": "boolean"
+      },
+      {
+        "name": "isVegan",
+        "type": "boolean"
+      },
+      {
+        "name": "calories",
+        "type": "number"
+      },
+      {
+        "name": "protein",
+        "type": "number",
+        "title": "Protein (g)"
+      },
+      {
+        "name": "carbs",
+        "type": "number",
+        "title": "Carbohydrates (g)"
+      },
+      {
+        "name": "fat",
+        "type": "number",
+        "title": "Fat (g)"
+      }
+    ],
+    "name": "foodItem",
+    "type": "document"
+  },
+  {
+    "description": "Temporary storage for active orders (24-hour lifecycle)",
+    "fields": [
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "userId",
+        "type": "string",
+        "title": "User ID"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "userEmail",
+        "type": "string"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "description": "Unique identifier to prevent duplicate orders",
+        "name": "orderIdentifier",
+        "type": "string",
+        "title": "Unique Order Identifier"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              },
+              {
+                "flag": "min",
+                "constraint": 1
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "of": [
+          {
+            "fields": [
+              {
+                "validation": [
+                  {
+                    "rules": [
+                      {
+                        "flag": "presence",
+                        "constraint": "required"
+                      }
+                    ],
+                    "level": "error"
+                  }
+                ],
+                "name": "foodName",
+                "type": "string"
+              },
+              {
+                "validation": [
+                  {
+                    "rules": [
+                      {
+                        "flag": "presence",
+                        "constraint": "required"
+                      },
+                      {
+                        "flag": "min",
+                        "constraint": 1
+                      }
+                    ],
+                    "level": "error"
+                  }
+                ],
+                "name": "quantity",
+                "type": "number"
+              },
+              {
+                "validation": [
+                  {
+                    "rules": [
+                      {
+                        "flag": "presence",
+                        "constraint": "required"
+                      },
+                      {
+                        "flag": "min",
+                        "constraint": 0
+                      }
+                    ],
+                    "level": "error"
+                  }
+                ],
+                "name": "price",
+                "type": "number"
+              },
+              {
+                "validation": [
+                  {
+                    "rules": [
+                      {
+                        "flag": "presence",
+                        "constraint": "required"
+                      }
+                    ],
+                    "level": "error"
+                  }
+                ],
+                "name": "shopName",
+                "type": "string"
+              }
+            ],
+            "type": "object"
+          }
+        ],
+        "name": "items",
+        "type": "array",
+        "title": "Order Items"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              },
+              {
+                "flag": "min",
+                "constraint": 0
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "total",
+        "type": "number",
+        "title": "Total Amount"
+      },
+      {
+        "options": {
+          "list": [
+            {
+              "title": "Cash on Delivery (COD)",
+              "value": "cod"
+            },
+            {
+              "title": "Online Payment",
+              "value": "online"
+            }
+          ]
+        },
+        "initialValue": "cod",
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "valid",
+                "constraint": [
+                  "cod",
+                  "online"
+                ]
+              },
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "paymentMethod",
+        "type": "string"
+      },
+      {
+        "initialValue": false,
+        "description": "True = Paid, False = Unpaid",
+        "name": "orderStatus",
+        "type": "boolean",
+        "title": "Payment Status"
+      },
+      {
+        "options": {
+          "list": [
+            {
+              "title": "Ordered",
+              "value": "ordered"
+            },
+            {
+              "title": "Order Accepted",
+              "value": "order accepted"
+            },
+            {
+              "title": "Preparing",
+              "value": "preparing"
+            },
+            {
+              "title": "Out for Delivery",
+              "value": "out for delivery"
+            },
+            {
+              "title": "Delivered",
+              "value": "delivered"
+            },
+            {
+              "title": "Cancelled",
+              "value": "cancelled"
+            }
+          ]
+        },
+        "initialValue": "ordered",
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "valid",
+                "constraint": [
+                  "ordered",
+                  "order accepted",
+                  "preparing",
+                  "out for delivery",
+                  "delivered",
+                  "cancelled"
+                ]
+              },
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "status",
+        "type": "string",
+        "title": "Order Status"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "createdAt",
+        "type": "datetime"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "updatedAt",
+        "type": "datetime"
+      },
+      {
+        "initialValue": false,
+        "description": "True if payment is completed via Razorpay.",
+        "name": "paymentStatus",
+        "type": "boolean",
+        "title": "Payment Completed"
+      },
+      {
+        "description": "User contact and delivery information",
+        "fields": [
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "phone",
+            "type": "string",
+            "title": "Phone Number"
+          },
+          {
+            "name": "address",
+            "type": "text",
+            "title": "Delivery Address"
+          }
+        ],
+        "name": "userDetails",
+        "type": "object"
+      },
+      {
+        "description": "Payment information for online transactions",
+        "fields": [
+          {
+            "name": "razorpayOrderId",
+            "type": "string",
+            "title": "Razorpay Order ID"
+          },
+          {
+            "name": "razorpayPaymentId",
+            "type": "string",
+            "title": "Razorpay Payment ID"
+          },
+          {
+            "name": "razorpaySignature",
+            "type": "string"
+          },
+          {
+            "name": "transactionId",
+            "type": "string",
+            "title": "Transaction ID"
+          },
+          {
+            "options": {
+              "list": [
+                {
+                  "title": "Pending",
+                  "value": "pending"
+                },
+                {
+                  "title": "Success",
+                  "value": "success"
+                },
+                {
+                  "title": "Failed",
+                  "value": "failed"
+                },
+                {
+                  "title": "Cancelled",
+                  "value": "cancelled"
+                }
+              ]
+            },
+            "initialValue": "pending",
+            "name": "paymentStatus",
+            "type": "string"
+          },
+          {
+            "name": "paidAt",
+            "type": "datetime"
+          },
+          {
+            "description": "Amount to be transferred to the vendor",
+            "name": "transferAmount",
+            "type": "number"
+          },
+          {
+            "description": "Vendor's Razorpay account ID for transfers",
+            "name": "razorpayAccountId",
+            "type": "string",
+            "title": "Razorpay Account ID"
+          }
+        ],
+        "name": "paymentDetails",
+        "type": "object"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "description": "When this order will be automatically archived (24 hours after creation)",
+        "name": "expiresAt",
+        "type": "datetime"
+      },
+      {
+        "initialValue": false,
+        "description": "Whether this order has been moved to history",
+        "name": "isArchived",
+        "type": "boolean"
+      },
+      {
+        "description": "When this order was moved to history",
+        "name": "archivedAt",
+        "type": "datetime"
+      }
+    ],
+    "name": "order",
+    "type": "document"
+  },
+  {
+    "description": "Permanent storage for all order history and analytics",
+    "fields": [
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "userId",
+        "type": "string",
+        "title": "User ID"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "userEmail",
+        "type": "string"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "description": "Unique identifier to prevent duplicate history entries",
+        "name": "orderIdentifier",
+        "type": "string",
+        "title": "Unique Order Identifier"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              },
+              {
+                "flag": "min",
+                "constraint": 1
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "of": [
+          {
+            "fields": [
+              {
+                "validation": [
+                  {
+                    "rules": [
+                      {
+                        "flag": "presence",
+                        "constraint": "required"
+                      }
+                    ],
+                    "level": "error"
+                  }
+                ],
+                "name": "foodName",
+                "type": "string"
+              },
+              {
+                "validation": [
+                  {
+                    "rules": [
+                      {
+                        "flag": "presence",
+                        "constraint": "required"
+                      },
+                      {
+                        "flag": "min",
+                        "constraint": 1
+                      }
+                    ],
+                    "level": "error"
+                  }
+                ],
+                "name": "quantity",
+                "type": "number"
+              },
+              {
+                "validation": [
+                  {
+                    "rules": [
+                      {
+                        "flag": "presence",
+                        "constraint": "required"
+                      },
+                      {
+                        "flag": "min",
+                        "constraint": 0
+                      }
+                    ],
+                    "level": "error"
+                  }
+                ],
+                "name": "price",
+                "type": "number"
+              },
+              {
+                "validation": [
+                  {
+                    "rules": [
+                      {
+                        "flag": "presence",
+                        "constraint": "required"
+                      }
+                    ],
+                    "level": "error"
+                  }
+                ],
+                "name": "shopName",
+                "type": "string"
+              }
+            ],
+            "type": "object"
+          }
+        ],
+        "name": "items",
+        "type": "array",
+        "title": "Order Items"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              },
+              {
+                "flag": "min",
+                "constraint": 0
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "total",
+        "type": "number",
+        "title": "Total Amount"
+      },
+      {
+        "options": {
+          "list": [
+            {
+              "title": "Cash on Delivery (COD)",
+              "value": "cod"
+            },
+            {
+              "title": "Online Payment",
+              "value": "online"
+            }
+          ]
+        },
+        "initialValue": "cod",
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "valid",
+                "constraint": [
+                  "cod",
+                  "online"
+                ]
+              },
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "paymentMethod",
+        "type": "string"
+      },
+      {
+        "options": {
+          "list": [
+            {
+              "title": "Ordered",
+              "value": "ordered"
+            },
+            {
+              "title": "Order Accepted",
+              "value": "order accepted"
+            },
+            {
+              "title": "Preparing",
+              "value": "preparing"
+            },
+            {
+              "title": "Out for Delivery",
+              "value": "out for delivery"
+            },
+            {
+              "title": "Delivered",
+              "value": "delivered"
+            },
+            {
+              "title": "Cancelled",
+              "value": "cancelled"
+            }
+          ]
+        },
+        "initialValue": "ordered",
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "valid",
+                "constraint": [
+                  "ordered",
+                  "order accepted",
+                  "preparing",
+                  "out for delivery",
+                  "delivered",
+                  "cancelled"
+                ]
+              },
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "status",
+        "type": "string",
+        "title": "Final Status"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "createdAt",
+        "type": "datetime",
+        "title": "Order Created At"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "updatedAt",
+        "type": "datetime",
+        "title": "Last Updated At"
+      },
+      {
+        "description": "When the order was moved from active orders to history",
+        "name": "archivedAt",
+        "type": "datetime"
+      },
+      {
+        "initialValue": false,
+        "description": "True if payment is completed via Razorpay.",
+        "name": "paymentStatus",
+        "type": "boolean",
+        "title": "Payment Completed"
+      },
+      {
+        "description": "User contact and delivery information",
+        "fields": [
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "phone",
+            "type": "string",
+            "title": "Phone Number"
+          },
+          {
+            "name": "address",
+            "type": "text",
+            "title": "Delivery Address"
+          }
+        ],
+        "name": "userDetails",
+        "type": "object"
+      },
+      {
+        "description": "Legacy field. Not required for new orders.",
+        "name": "originalOrderId",
+        "type": "string",
+        "title": "Original Order ID"
+      },
+      {
+        "description": "Notes about the order lifecycle and any special circumstances",
+        "name": "lifecycleNotes",
+        "type": "text"
+      },
+      {
+        "description": "Payment information for online transactions",
+        "fields": [
+          {
+            "name": "razorpayOrderId",
+            "type": "string",
+            "title": "Razorpay Order ID"
+          },
+          {
+            "name": "razorpayPaymentId",
+            "type": "string",
+            "title": "Razorpay Payment ID"
+          },
+          {
+            "name": "razorpaySignature",
+            "type": "string"
+          },
+          {
+            "name": "transactionId",
+            "type": "string",
+            "title": "Transaction ID"
+          },
+          {
+            "options": {
+              "list": [
+                {
+                  "title": "Pending",
+                  "value": "pending"
+                },
+                {
+                  "title": "Success",
+                  "value": "success"
+                },
+                {
+                  "title": "Failed",
+                  "value": "failed"
+                },
+                {
+                  "title": "Cancelled",
+                  "value": "cancelled"
+                }
+              ]
+            },
+            "initialValue": "pending",
+            "name": "paymentStatus",
+            "type": "string"
+          },
+          {
+            "name": "paidAt",
+            "type": "datetime"
+          },
+          {
+            "description": "Amount to be transferred to the vendor",
+            "name": "transferAmount",
+            "type": "number"
+          },
+          {
+            "description": "Vendor's Razorpay account ID for transfers",
+            "name": "razorpayAccountId",
+            "type": "string",
+            "title": "Razorpay Account ID"
+          }
+        ],
+        "name": "paymentDetails",
+        "type": "object"
+      }
+    ],
+    "name": "orderHistory",
+    "type": "document"
+  },
+  {
+    "fields": [
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "userName",
+        "type": "string"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "userEmail",
+        "type": "string"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "description": "The shop being reviewed",
+        "to": [
+          {
+            "type": "shop"
+          }
+        ],
+        "name": "shopRef",
+        "type": "reference",
+        "title": "Shop"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              },
+              {
+                "flag": "min",
+                "constraint": 1
+              },
+              {
+                "flag": "max",
+                "constraint": 5
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "description": "Star rating from 1 to 5",
+        "name": "rating",
+        "type": "number"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              },
+              {
+                "flag": "min",
+                "constraint": 10
+              },
+              {
+                "flag": "max",
+                "constraint": 500
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "description": "Your review (10-500 characters)",
+        "name": "reviewText",
+        "type": "text"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "readOnly": true,
+        "name": "createdAt",
+        "type": "datetime"
+      },
+      {
+        "initialValue": false,
+        "description": "Whether this review has been verified",
+        "name": "isVerified",
+        "type": "boolean",
+        "title": "Verified Review"
+      },
+      {
+        "initialValue": 0,
+        "description": "Number of users who found this review helpful",
+        "name": "helpfulCount",
+        "type": "number"
+      }
+    ],
+    "name": "review",
+    "type": "document"
+  },
+  {
+    "fields": [
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "userId",
+        "type": "string",
+        "title": "User ID"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "to": [
+          {
+            "type": "foodItem"
+          }
+        ],
+        "name": "foodId",
+        "type": "reference",
+        "title": "Food Item"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              },
+              {
+                "flag": "min",
+                "constraint": 1
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "quantity",
+        "type": "number"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              },
+              {
+                "flag": "min",
+                "constraint": 0
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "price",
+        "type": "number"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "createdAt",
+        "type": "datetime"
+      }
+    ],
+    "name": "cartItem",
+    "type": "document"
+  },
+  {
+    "description": "Admin login credentials for different shops",
+    "fields": [
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "shopName",
+        "type": "string"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "adminUsername",
+        "type": "string"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "adminPassword",
+        "type": "string"
+      },
+      {
+        "initialValue": true,
+        "description": "Whether this admin account is active",
+        "name": "isActive",
+        "type": "boolean"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "createdAt",
+        "type": "datetime"
+      },
+      {
+        "name": "lastLogin",
+        "type": "datetime"
+      }
+    ],
+    "name": "adminCredentials",
+    "type": "document"
+  },
+  {
+    "fields": [
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "userEmail",
+        "type": "string"
+      },
+      {
+        "initialValue": 0,
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              },
+              {
+                "flag": "min",
+                "constraint": 0
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "balance",
+        "type": "number",
+        "title": "Wallet Balance"
+      },
+      {
+        "of": [
+          {
+            "fields": [
+              {
+                "options": {
+                  "list": [
+                    {
+                      "title": "Add Money",
+                      "value": "add"
+                    },
+                    {
+                      "title": "Payment",
+                      "value": "payment"
+                    },
+                    {
+                      "title": "Refund",
+                      "value": "refund"
+                    }
+                  ]
+                },
+                "name": "type",
+                "type": "string",
+                "title": "Transaction Type"
+              },
+              {
+                "validation": [
+                  {
+                    "rules": [
+                      {
+                        "flag": "presence",
+                        "constraint": "required"
+                      },
+                      {
+                        "flag": "min",
+                        "constraint": 0
+                      }
+                    ],
+                    "level": "error"
+                  }
+                ],
+                "name": "amount",
+                "type": "number"
+              },
+              {
+                "name": "description",
+                "type": "string"
+              },
+              {
+                "name": "orderId",
+                "type": "string",
+                "title": "Order ID"
+              },
+              {
+                "name": "paymentId",
+                "type": "string",
+                "title": "Payment ID"
+              },
+              {
+                "name": "timestamp",
+                "type": "datetime"
+              }
+            ],
+            "type": "object"
+          }
+        ],
+        "name": "transactions",
+        "type": "array",
+        "title": "Wallet Transactions"
+      },
+      {
+        "initialValue": true,
+        "name": "isActive",
+        "type": "boolean"
+      },
+      {
+        "name": "lastUpdated",
+        "type": "datetime"
+      }
+    ],
+    "name": "wallet",
+    "type": "document",
+    "title": "User Wallet"
+  },
+  {
+    "fields": [
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              },
+              {
+                "flag": "min",
+                "constraint": 4
+              },
+              {
+                "flag": "max",
+                "constraint": 20
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "description": "The unique serial number from the RFID card",
+        "name": "cardId",
+        "type": "string",
+        "title": "RFID Card ID"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "description": "Email address of the card owner",
+        "name": "userEmail",
+        "type": "string"
+      },
+      {
+        "description": "College student ID number",
+        "name": "studentId",
+        "type": "string",
+        "title": "Student ID"
+      },
+      {
+        "description": "Full name of the student",
+        "name": "studentName",
+        "type": "string"
+      },
+      {
+        "description": "Name of the college/institution",
+        "name": "collegeName",
+        "type": "string"
+      },
+      {
+        "options": {
+          "list": [
+            {
+              "title": "Student ID",
+              "value": "student"
+            },
+            {
+              "title": "Faculty ID",
+              "value": "faculty"
+            },
+            {
+              "title": "Staff ID",
+              "value": "staff"
+            },
+            {
+              "title": "Guest Card",
+              "value": "guest"
+            }
+          ]
+        },
+        "initialValue": "student",
+        "name": "cardType",
+        "type": "string"
+      },
+      {
+        "initialValue": true,
+        "description": "Whether this card is currently active for payments",
+        "name": "isActive",
+        "type": "boolean"
+      },
+      {
+        "initialValue": false,
+        "description": "Whether this card is blocked from making payments",
+        "name": "isBlocked",
+        "type": "boolean"
+      },
+      {
+        "name": "registeredAt",
+        "type": "datetime"
+      },
+      {
+        "description": "When this card was last used for payment",
+        "name": "lastUsedAt",
+        "type": "datetime"
+      },
+      {
+        "description": "Admin who registered this card",
+        "name": "registeredBy",
+        "type": "string"
+      },
+      {
+        "description": "Additional notes about this card",
+        "name": "notes",
+        "type": "text"
+      }
+    ],
+    "name": "rfidCard",
+    "type": "document",
+    "title": "RFID Card"
+  },
+  {
+    "fields": [
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "orderId",
+        "type": "string",
+        "title": "Order ID"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              },
+              {
+                "flag": "min",
+                "constraint": 0
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "amount",
+        "type": "number"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "shopId",
+        "type": "string",
+        "title": "Shop ID"
+      },
+      {
+        "name": "deviceId",
+        "type": "string",
+        "title": "Device ID"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "name": "razorpayOrderId",
+        "type": "string",
+        "title": "Razorpay Order ID"
+      },
+      {
+        "options": {
+          "list": [
+            {
+              "title": "Created",
+              "value": "created"
+            },
+            {
+              "title": "Paid",
+              "value": "paid"
+            },
+            {
+              "title": "Failed",
+              "value": "failed"
+            },
+            {
+              "title": "Cancelled",
+              "value": "cancelled"
+            }
+          ]
+        },
+        "initialValue": "created",
+        "name": "status",
+        "type": "string",
+        "title": "Payment Status"
+      },
+      {
+        "name": "createdAt",
+        "type": "datetime"
+      },
+      {
+        "name": "paidAt",
+        "type": "datetime"
+      },
+      {
+        "options": {
+          "list": [
+            {
+              "title": "RFID",
+              "value": "rfid"
+            },
+            {
+              "title": "Razorpay",
+              "value": "razorpay"
+            },
+            {
+              "title": "Cash",
+              "value": "cash"
+            }
+          ]
+        },
+        "name": "paymentMethod",
+        "type": "string"
+      },
+      {
+        "name": "notes",
+        "type": "text"
+      }
+    ],
+    "name": "razorpayPayment",
+    "type": "document"
+  }
+]

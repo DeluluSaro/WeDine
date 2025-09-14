@@ -11,8 +11,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Eye, RefreshCw, LogOut } from 'lucide-react';
+import { Eye, RefreshCw, LogOut, CreditCard, Wifi, Smartphone } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+// import { environment, debugLog } from '@/app/lib/environment';
 
 interface OrderItem {
   foodName: string;
@@ -34,6 +35,7 @@ interface Order {
   status: string;
   orderStatus: boolean;
   paymentStatus: boolean;
+  requiredRfidCardId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -62,16 +64,33 @@ export default function AdminPage() {
   const [orderType, setOrderType] = useState<'active' | 'history'>('active');
   const [loading, setLoading] = useState(true);
   const [updatingOrder, setUpdatingOrder] = useState<string | null>(null);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [statusUpdates, setStatusUpdates] = useState<{ [key: string]: string }>({});
   const [updateQueue, setUpdateQueue] = useState<string[]>([]);
   const [adminSession, setAdminSession] = useState<any>(null);
+  const [rfidMode, setRfidMode] = useState(false);
+  const [rfidDeviceStatus, setRfidDeviceStatus] = useState<'offline' | 'online' | 'unknown'>('unknown');
+  const [rfidInput, setRfidInput] = useState('');
+  const [selectedOrderForRfid, setSelectedOrderForRfid] = useState<Order | null>(null);
+  const [isListeningToRfid, setIsListeningToRfid] = useState(false);
+  const [latestRfidCard, setLatestRfidCard] = useState<any>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [lastScannedCardId, setLastScannedCardId] = useState<string>('');
+  const [connectionRetries, setConnectionRetries] = useState(0);
+  const [maxRetries] = useState(5);
+  const [isManualScanning, setIsManualScanning] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     fetchOrders();
     fetchShops();
   }, [orderType]);
+
+  // Fetch latest RFID data when admin session is loaded
+  useEffect(() => {
+    if (adminSession?.shopName) {
+      fetchLatestRfidData();
+    }
+  }, [adminSession?.shopName]);
 
   useEffect(() => {
     // Load admin session
@@ -148,6 +167,7 @@ export default function AdminPage() {
             status,
             orderStatus,
             paymentStatus,
+            requiredRfidCardId,
             createdAt,
             updatedAt,
             expiresAt,
@@ -183,6 +203,83 @@ export default function AdminPage() {
       setShops(result);
     } catch (error) {
       console.error('Error fetching shops:', error);
+    }
+  };
+
+  const fetchLatestRfidData = async (retryCount = 0, isManual = false) => {
+    if (!adminSession?.shopName) return;
+    
+    if (isManual) {
+      setIsManualScanning(true);
+    }
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const response = await fetch(`/api/rfid/data?shopName=${encodeURIComponent(adminSession.shopName)}`, {
+        signal: controller.signal,
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Use the latestScan directly from the API
+        if (data.latestScan && data.latestScan.cardId) {
+          const currentCardId = data.latestScan.cardId;
+          
+          // Validate card ID format (should be alphanumeric and reasonable length)
+          if (currentCardId.length >= 4 && currentCardId.length <= 20 && /^[A-F0-9]+$/i.test(currentCardId)) {
+            setLatestRfidCard(data.latestScan);
+            // If manual scan, also update the input field
+            if (isManual) {
+              setRfidInput(currentCardId);
+              console.log(`Manual scan - RFID card: ${currentCardId}`);
+            }
+          } else {
+            console.warn(`Invalid RFID card format in manual scan: ${currentCardId}`);
+            setLatestRfidCard(null);
+            if (isManual) {
+              setRfidInput('');
+            }
+          }
+        } else {
+          setLatestRfidCard(null);
+          if (isManual) {
+            setRfidInput('');
+          }
+        }
+        
+        setRfidDeviceStatus('online');
+        setConnectionRetries(0); // Reset retry count on successful connection
+      } else {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error fetching latest RFID data:', error);
+      setRfidDeviceStatus('offline');
+      
+      // Implement retry logic
+      if (retryCount < maxRetries) {
+        console.log(`Retrying connection... (${retryCount + 1}/${maxRetries})`);
+        setConnectionRetries(retryCount + 1);
+        setTimeout(() => {
+          fetchLatestRfidData(retryCount + 1, isManual);
+        }, Math.pow(2, retryCount) * 1000); // Exponential backoff
+      } else {
+        console.error('Max retries reached. Connection failed.');
+        setConnectionRetries(maxRetries);
+      }
+    } finally {
+      if (isManual) {
+        setIsManualScanning(false);
+      }
     }
   };
 
@@ -239,10 +336,10 @@ export default function AdminPage() {
     }
   };
 
-  const addToUpdateQueue = (orderId: string, newStatus: string) => {
-    setStatusUpdates(prev => ({ ...prev, [orderId]: newStatus }));
-    setUpdateQueue(prev => [...prev, orderId]);
-  };
+  // const addToUpdateQueue = (orderId: string, newStatus: string) => {
+  //   setStatusUpdates(prev => ({ ...prev, [orderId]: newStatus }));
+  //   setUpdateQueue(prev => [...prev, orderId]);
+  // };
 
   const removeFromQueue = (orderId: string) => {
     setUpdateQueue(prev => prev.filter(id => id !== orderId));
@@ -285,6 +382,157 @@ export default function AdminPage() {
     return name;
   };
 
+  const checkRfidDeviceStatus = async () => {
+    try {
+      // This would check if the RFID device is online
+      // For now, we'll simulate it
+      setRfidDeviceStatus('online');
+    } catch (error) {
+      setRfidDeviceStatus('offline');
+    }
+  };
+
+  const toggleRfidMode = () => {
+    setRfidMode(!rfidMode);
+    if (!rfidMode) {
+      // Enable RFID mode - manual scanning only
+      startListeningToRfid();
+    } else {
+      // Disable RFID mode
+      stopListeningToRfid();
+    }
+  };
+
+  const processRfidPayment = async (rfidCardId: string, order: Order) => {
+    try {
+      console.log('Processing RFID payment:', { rfidCardId, orderId: order._id, shopName: adminSession?.shopName });
+      
+      const response = await fetch('/api/payment/rfid-direct', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          rfidCardId: rfidCardId,
+          orderId: order._id,
+          shopName: adminSession?.shopName || 'SHOP_001'
+        }),
+      });
+
+      const result = await response.json();
+      console.log('Payment result:', result);
+
+      if (result.success) {
+        // Show payment success message
+        let successMessage = `Payment successful! ₹${result.orderTotal} paid by ${result.studentName} for Order #${order.orderId || order._id.slice(-6)}. New balance: ₹${result.newBalance}`;
+        
+        // Add transfer status to message
+        if (result.transferToShopOwner) {
+          if (result.transferToShopOwner.success) {
+            successMessage += `\n💰 Money transferred to shop owner (Payout ID: ${result.transferToShopOwner.payoutId})`;
+          } else {
+            successMessage += `\n⚠️ Payment processed but transfer to shop owner failed: ${result.transferToShopOwner.error}`;
+          }
+        } else {
+          successMessage += `\n⚠️ Shop owner payment details not configured`;
+        }
+        
+        toast.success(successMessage);
+        // setCurrentRfidOrder(null); // Removed unused variable
+        setRfidInput(''); // Clear RFID input
+        setLatestRfidCard(null); // Clear latest card
+        setSelectedOrderForRfid(null); // Clear selected order
+        setLastScannedCardId(''); // Reset last scanned card
+        fetchOrders(true); // Refresh orders
+      } else {
+        toast.error(result.message || 'Payment failed');
+        console.error('Payment failed:', result);
+      }
+    } catch (error) {
+      console.error('RFID payment error:', error);
+      toast.error('Failed to process RFID payment');
+    }
+  };
+
+  const simulateRfidScan = (order: Order) => {
+    // This simulates an RFID scan - in real implementation, this would come from the device
+    const rfidCardId = prompt('Enter RFID Card ID (simulated scan):');
+    if (rfidCardId) {
+      processRfidPayment(rfidCardId, order);
+    }
+  };
+
+  const fetchRfidFromDevice = async () => {
+    try {
+      // Check if RFID device is online
+      if (rfidDeviceStatus !== 'online') {
+        toast.error('RFID device is offline. Please check connection.');
+        return;
+      }
+
+      // In a real implementation, this would listen for RFID events from the device
+      // For now, we'll simulate it by showing a prompt
+      const rfidCardId = prompt('Enter RFID Card ID from device (or scan with RFID reader):');
+      if (rfidCardId && rfidCardId.trim()) {
+        setRfidInput(rfidCardId.trim());
+      }
+    } catch (error) {
+      console.error('Error fetching RFID:', error);
+      toast.error('Failed to fetch RFID card ID');
+    }
+  };
+
+  const startListeningToRfid = async () => {
+    // Manual scanning only - no automatic polling
+    console.log('Manual RFID scanning enabled');
+    setIsListeningToRfid(true);
+  };
+
+  const stopListeningToRfid = () => {
+    if ((window as any).rfidInterval) {
+      clearInterval((window as any).rfidInterval);
+      (window as any).rfidInterval = null;
+    }
+    setIsListeningToRfid(false);
+    setRfidDeviceStatus('offline');
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if ((window as any).rfidInterval) {
+        clearInterval((window as any).rfidInterval);
+      }
+    };
+  }, []);
+
+  const handleDirectRfidPayment = async () => {
+    // Prevent multiple clicks
+    if (isProcessingPayment) {
+      toast.error('Payment is already being processed. Please wait...');
+      return;
+    }
+
+    if (!rfidInput.trim()) {
+      toast.error('Please enter RFID card ID');
+      return;
+    }
+
+    if (!selectedOrderForRfid) {
+      toast.error('Please select an order first');
+      return;
+    }
+
+    setIsProcessingPayment(true);
+    try {
+      await processRfidPayment(rfidInput.trim(), selectedOrderForRfid);
+      setRfidInput('');
+      setSelectedOrderForRfid(null);
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
   const filteredOrders = orders.filter(order => {
     // Security: If shop filter is locked, force filter by admin's shop
     let effectiveShopFilter = selectedShop;
@@ -310,6 +558,18 @@ export default function AdminPage() {
   });
 
   const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'ordered': return 'default';
+      case 'order accepted': return 'secondary';
+      case 'preparing': return 'outline';
+      case 'out for delivery': return 'outline';
+      case 'delivered': return 'default';
+      case 'cancelled': return 'destructive';
+      default: return 'secondary';
+    }
+  };
+
+  const getStatusClassName = (status: string) => {
     switch (status) {
       case 'ordered': return 'bg-blue-100 text-blue-800';
       case 'order accepted': return 'bg-yellow-100 text-yellow-800';
@@ -504,6 +764,228 @@ export default function AdminPage() {
                 Process Queue ({updateQueue.length})
               </Button>
             )}
+
+            {/* RFID Payment Button */}
+            <Button
+              onClick={toggleRfidMode}
+              variant={rfidMode ? "default" : "outline"}
+              className={`flex items-center gap-2 ${
+                rfidMode 
+                  ? 'bg-green-600 hover:bg-green-700' 
+                  : 'border-green-600 text-green-600 hover:bg-green-50'
+              }`}
+            >
+              <CreditCard className="h-4 w-4" />
+              {rfidMode ? 'RFID Auto-Scan ON' : 'Enable RFID Auto-Scan'}
+            </Button>
+
+            {/* RFID Finder Link */}
+            <Button
+              onClick={() => {
+                const url = adminSession?.shopName 
+                  ? `/rfid-finder?shop=${encodeURIComponent(adminSession.shopName)}`
+                  : '/rfid-finder';
+                window.open(url, '_blank');
+              }}
+              variant="outline"
+              className="flex items-center gap-2 border-blue-600 text-blue-600 hover:bg-blue-50"
+            >
+              <Smartphone className="h-4 w-4" />
+              RFID Finder
+              {adminSession?.shopName && (
+                <span className="text-xs bg-blue-100 text-blue-700 px-1 rounded">
+                  {adminSession.shopName}
+                </span>
+              )}
+            </Button>
+
+            {/* RFID Device Status */}
+            {rfidMode && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
+                <Wifi className={`h-4 w-4 ${
+                  rfidDeviceStatus === 'online' ? 'text-green-500' : 
+                  rfidDeviceStatus === 'offline' ? 'text-red-500' : 'text-yellow-500'
+                }`} />
+                <span className="text-sm font-medium">
+                  Device: {rfidDeviceStatus === 'online' ? 'Online' : 
+                          rfidDeviceStatus === 'offline' ? 'Offline' : 'Unknown'}
+                </span>
+              </div>
+            )}
+
+            {/* Simplified RFID Payment Section */}
+            {rfidMode && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
+                <h3 className="text-lg font-semibold text-green-800 mb-4 flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  RFID Payment
+                </h3>
+                
+                <div className="space-y-4">
+                  {/* Order Selection */}
+                  <div>
+                    <Label htmlFor="order-select" className="text-sm font-medium text-gray-700 mb-2 block">
+                      Select Order to Pay
+                    </Label>
+                    <Select 
+                      value={selectedOrderForRfid?._id || ''} 
+                      onValueChange={(orderId) => {
+                        const order = orders.find(o => o._id === orderId);
+                        setSelectedOrderForRfid(order || null);
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Choose an unpaid order..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {orders
+                          .filter(order => 
+                            !order.paymentStatus && 
+                            order.items.some(item => item.shopName === adminSession?.shopName)
+                          )
+                          .map((order) => (
+                            <SelectItem key={order._id} value={order._id}>
+                              Order #{order.orderId || order._id.slice(-6)} - ₹{order.total} - {parseEmailToName(order.userEmail)}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* RFID Card Input */}
+                  <div>
+                    <Label htmlFor="rfid-input" className="text-sm font-medium text-gray-700 mb-2 block">
+                      Scanned RFID Card ID
+                    </Label>
+                    <Input
+                      id="rfid-input"
+                      type="text"
+                      value={rfidInput}
+                      readOnly
+                      placeholder="RFID card will appear here automatically when scanned..."
+                      className="w-full font-mono text-lg p-3 bg-white border-2 border-gray-300 rounded-lg"
+                    />
+                    {rfidInput && (
+                      <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                        <p className="text-sm text-green-600 font-medium">
+                          ✅ Valid RFID card detected and ready for payment
+                        </p>
+                        <p className="text-xs text-green-500 mt-1">
+                          Card ID: {rfidInput}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={() => {
+                        setRfidInput('');
+                        setLatestRfidCard(null);
+                        setSelectedOrderForRfid(null);
+                        setIsProcessingPayment(false);
+                        setLastScannedCardId(''); // Reset last scanned card
+                        setConnectionRetries(0); // Reset connection retries
+                        setIsManualScanning(false); // Reset manual scanning state
+                        stopListeningToRfid();
+                      }}
+                      variant="outline"
+                      className="flex-1 border-red-600 text-red-600 hover:bg-red-50"
+                      disabled={isProcessingPayment}
+                    >
+                      Clear
+                    </Button>
+                    
+                    <Button
+                      onClick={() => {
+                        fetchLatestRfidData(0, true); // Manual scan
+                        setLastScannedCardId(''); // Reset to allow same card detection
+                      }}
+                      variant="outline"
+                      className="flex-1 border-blue-600 text-blue-600 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={isProcessingPayment || isManualScanning}
+                    >
+                      <RefreshCw className={`h-4 w-4 mr-2 ${isManualScanning ? 'animate-spin' : ''}`} />
+                      {isManualScanning ? 'Scanning...' : 'Scan'}
+                    </Button>
+                    
+                    {connectionRetries >= maxRetries && (
+                      <Button
+                        onClick={() => {
+                          setConnectionRetries(0);
+                          startListeningToRfid();
+                        }}
+                        variant="outline"
+                        className="flex-1 border-purple-600 text-purple-600 hover:bg-purple-50"
+                        disabled={isProcessingPayment}
+                      >
+                        <Wifi className="h-4 w-4 mr-2" />
+                        Reconnect
+                      </Button>
+                    )}
+                    
+                    <Button
+                      onClick={handleDirectRfidPayment}
+                      disabled={!rfidInput.trim() || !selectedOrderForRfid || isProcessingPayment}
+                      className="flex-2 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
+                    >
+                      {isProcessingPayment ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        'Start Pay'
+                      )}
+                    </Button>
+                  </div>
+
+                  {/* Status Display */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">Status:</span>
+                      <span className={`font-medium ${
+                        isProcessingPayment ? 'text-orange-600' :
+                        isManualScanning ? 'text-blue-600' :
+                        isListeningToRfid ? 'text-blue-600' : 
+                        rfidInput ? 'text-green-600' : 'text-gray-500'
+                      }`}>
+                        {isProcessingPayment ? 'Processing payment...' :
+                         isManualScanning ? 'Scanning for latest card...' :
+                         isListeningToRfid ? 'RFID mode enabled - click Scan to check for cards' : 
+                         rfidInput ? 'RFID card ready for payment' : 'Click Scan button to check for RFID cards...'}
+                      </span>
+                    </div>
+                    {adminSession?.shopName && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Shop: {adminSession.shopName}
+                      </div>
+                    )}
+                    {rfidInput && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Card ID: {rfidInput}
+                      </div>
+                    )}
+                    {selectedOrderForRfid && (
+                      <div className="text-xs text-blue-600 mt-1">
+                        Selected: Order #{selectedOrderForRfid.orderId || selectedOrderForRfid._id.slice(-6)} - ₹{selectedOrderForRfid.total}
+                      </div>
+                    )}
+                    {connectionRetries > 0 && connectionRetries < maxRetries && (
+                      <div className="text-xs text-orange-600 mt-1">
+                        🔄 Reconnecting... (Attempt {connectionRetries}/{maxRetries})
+                      </div>
+                    )}
+                    {connectionRetries >= maxRetries && (
+                      <div className="text-xs text-red-600 mt-1">
+                        ❌ Connection failed. Please try again.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -633,7 +1115,7 @@ export default function AdminPage() {
                       </td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div className="flex items-center gap-2">
-                          <Badge variant={getStatusColor(order.status)}>
+                          <Badge variant={getStatusColor(order.status)} className={getStatusClassName(order.status)}>
                             {order.status}
                           </Badge>
                           {updateQueue.includes(order._id) && (
@@ -710,7 +1192,7 @@ export default function AdminPage() {
                                   </div>
                                   <div>
                                     <Label className="text-sm font-medium">Order Status</Label>
-                                    <Badge variant={getStatusColor(order.status)}>
+                                    <Badge variant={getStatusColor(order.status)} className={getStatusClassName(order.status)}>
                                       {order.status}
                                     </Badge>
                                   </div>
@@ -800,6 +1282,20 @@ export default function AdminPage() {
                                   ✕
                                 </Button>
                               </div>
+                            )}
+
+                            {/* RFID Payment Button */}
+                            {rfidMode && !order.paymentStatus && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => simulateRfidScan(order)}
+                                className="w-full border-green-600 text-green-600 hover:bg-green-50"
+                                disabled={isShopFilterLocked && adminSession?.shopName && !order.items.some(item => item.shopName === adminSession.shopName)}
+                              >
+                                <CreditCard className="h-3 w-3 mr-1" />
+                                RFID Pay
+                              </Button>
                             )}
                           </div>
                         </div>

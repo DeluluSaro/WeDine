@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { FloatingNav } from '@/components/ui/floating-navbar';
-import { HomeIcon, BookOpen, History, Wallet, MailIcon, CreditCard, Plus, Minus, ArrowUp, ArrowDown, Clock, CheckCircle } from 'lucide-react';
+import { HomeIcon, BookOpen, History, Wallet, MailIcon, CreditCard, Plus, Minus, ArrowUp, ArrowDown, Clock, CheckCircle, Smartphone, Wifi, AlertCircle, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -25,6 +25,15 @@ const WalletPage = () => {
   const [addingMoney, setAddingMoney] = useState(false);
   const [amount, setAmount] = useState<number>(100);
   const [showAddMoney, setShowAddMoney] = useState(false);
+  const [rfidCardId, setRfidCardId] = useState('');
+  const [showRfidSetup, setShowRfidSetup] = useState(false);
+  const [isNfcSupported, setIsNfcSupported] = useState(false);
+  const [isNfcEnabled, setIsNfcEnabled] = useState(false);
+  const [detectedCard, setDetectedCard] = useState<string | null>(null);
+  const [isEditingRfid, setIsEditingRfid] = useState(false);
+  const [currentRfidCard, setCurrentRfidCard] = useState<string>('');
+  const [verificationLoading, setVerificationLoading] = useState(false);
+  const [studentName, setStudentName] = useState('');
 
   const navItems = [
     { name: "Home", link: "/", icon: <HomeIcon /> },
@@ -38,8 +47,11 @@ const WalletPage = () => {
     if (user) {
       fetchWalletData();
       checkPendingPayments();
+      checkNfcSupport();
+      fetchCurrentRfidCard();
     }
   }, [user]);
+
 
   const checkPendingPayments = async () => {
     // Check for any pending payments that might have been completed
@@ -134,6 +146,173 @@ const WalletPage = () => {
     } catch (error) {
       console.error('Error creating test wallet:', error);
       toast.error('Failed to create test wallet');
+    }
+  };
+
+  const checkNfcSupport = () => {
+    if ('NDEFReader' in window) {
+      setIsNfcSupported(true);
+      checkNfcPermission();
+    } else {
+      setIsNfcSupported(false);
+    }
+  };
+
+  const checkNfcPermission = async () => {
+    try {
+      if ('permissions' in navigator) {
+        const permission = await navigator.permissions.query({ name: 'nfc' as PermissionName });
+        setIsNfcEnabled(permission.state === 'granted');
+      }
+    } catch (error) {
+      console.log('Permission check not supported');
+    }
+  };
+
+  const requestNfcPermission = async () => {
+    try {
+      const ndef = new (window as any).NDEFReader();
+      await ndef.scan();
+      setIsNfcEnabled(true);
+      toast.success('NFC permission granted!');
+    } catch (error) {
+      console.error('NFC permission denied:', error);
+      setIsNfcEnabled(false);
+      toast.error('NFC permission denied. Please enable NFC in your device settings.');
+    }
+  };
+
+  const startNfcScan = async () => {
+    if (!isNfcEnabled) {
+      await requestNfcPermission();
+      return;
+    }
+
+    try {
+      const ndef = new (window as any).NDEFReader();
+      
+      ndef.addEventListener('reading', (event: any) => {
+        const serialNumber = event.serialNumber;
+        if (serialNumber) {
+          setDetectedCard(serialNumber);
+          setRfidCardId(serialNumber);
+          toast.success('RFID card detected!');
+        }
+      });
+
+      await ndef.scan();
+      toast.info('Scan your RFID card now...');
+    } catch (error) {
+      console.error('NFC scan error:', error);
+      toast.error('Failed to start NFC scan. Please try again.');
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Copied to clipboard!');
+  };
+
+  const fetchCurrentRfidCard = async () => {
+    if (!user?.emailAddresses?.[0]?.emailAddress) return;
+    
+    try {
+      const response = await fetch(`/api/payment/rfid/status?userEmail=${encodeURIComponent(user.emailAddresses[0].emailAddress)}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.rfidCard) {
+          setCurrentRfidCard(data.rfidCard.cardId);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching current RFID card:', error);
+    }
+  };
+
+  const verifyRfidCard = async () => {
+    if (!rfidCardId || !user?.emailAddresses?.[0]?.emailAddress) {
+      toast.error('Please enter your RFID card ID');
+      return;
+    }
+
+    if (!studentName.trim()) {
+      toast.error('Please enter your student name');
+      return;
+    }
+
+    setVerificationLoading(true);
+    try {
+      // Direct registration without email verification
+      const response = await fetch('/api/email/direct-verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          rfidCardId: rfidCardId.trim(),
+          email: user.emailAddresses[0].emailAddress,
+          studentName: studentName.trim(),
+          userId: user.id,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success('RFID card registered successfully! You can now make RFID-based payments.');
+        setShowRfidSetup(false);
+        setIsEditingRfid(false);
+        setRfidCardId('');
+        setStudentName('');
+        setCurrentRfidCard(result.rfidCardId);
+        fetchWalletData(); // Refresh wallet data
+        fetchCurrentRfidCard(); // Refresh RFID card info
+      } else {
+        toast.error(result.message || 'Failed to register RFID card');
+      }
+    } catch (error) {
+      console.error('Error registering RFID card:', error);
+      toast.error('Failed to register RFID card. Please try again.');
+    } finally {
+      setVerificationLoading(false);
+    }
+  };
+
+
+  const updateRfidCard = async () => {
+    if (!rfidCardId || !user?.emailAddresses?.[0]?.emailAddress) {
+      toast.error('Please enter your RFID card ID');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/payment/rfid/improved', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          rfidCardId: rfidCardId,
+          userEmail: user.emailAddresses[0].emailAddress,
+          studentName: user.fullName || '',
+          adminKey: process.env.NEXT_PUBLIC_ADMIN_RFID_KEY || 'admin_key'
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success('RFID card updated successfully!');
+        setIsEditingRfid(false);
+        setRfidCardId('');
+        setCurrentRfidCard(rfidCardId);
+        fetchCurrentRfidCard(); // Refresh current RFID card
+      } else {
+        toast.error(result.message || 'Failed to update RFID card');
+      }
+    } catch (error) {
+      console.error('Error updating RFID card:', error);
+      toast.error('Failed to update RFID card');
     }
   };
 
@@ -300,9 +479,9 @@ const WalletPage = () => {
 
   // Show create wallet option if no wallet exists
   if (!walletData) {
-  return (
+    return (
       <div className="min-h-screen bg-gradient-to-br from-yellow-200 via-yellow-100 to-beige-100">
-        <FloatingNav navItems={navItems} showBadges={true} eWalletAmount={0} />
+        <FloatingNav navItems={navItems} />
         
         <div className="pt-24 px-4 sm:px-8">
           <div className="max-w-4xl mx-auto">
@@ -354,7 +533,7 @@ const WalletPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-200 via-yellow-100 to-beige-100">
-      <FloatingNav navItems={navItems} showBadges={true} eWalletAmount={walletData?.balance || 0} />
+      <FloatingNav navItems={navItems} />
       
       <div className="pt-24 px-4 sm:px-8">
         <div className="max-w-4xl mx-auto">
@@ -397,6 +576,300 @@ const WalletPage = () => {
                 )}
               </div>
             </div>
+          </div>
+
+          {/* RFID Card Setup Section */}
+          <div className="bg-gradient-to-br from-white/80 to-white/60 backdrop-blur-lg rounded-3xl p-8 mb-8 border border-yellow-200/50 shadow-xl">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-gradient-to-r from-blue-400 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Smartphone className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">RFID Card Setup</h2>
+              <p className="text-gray-600">Register your college ID card for instant payments</p>
+            </div>
+
+            {/* Current RFID Card Display */}
+            {currentRfidCard && !isEditingRfid && (
+              <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-green-800 mb-1">Current RFID Card</h3>
+                    <div className="flex items-center gap-2">
+                      <code className="bg-green-100 px-3 py-1 rounded text-sm font-mono">
+                        {currentRfidCard}
+                      </code>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => copyToClipboard(currentRfidCard)}
+                      >
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => {
+                      setIsEditingRfid(true);
+                      setRfidCardId(currentRfidCard);
+                    }}
+                    variant="outline"
+                    className="border-blue-600 text-blue-600 hover:bg-blue-50"
+                  >
+                    Edit
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {!showRfidSetup && !currentRfidCard ? (
+              <div className="text-center">
+                <Button
+                  onClick={() => setShowRfidSetup(true)}
+                  className="bg-gradient-to-r from-blue-400 to-blue-500 text-white font-bold py-3 px-8 rounded-full hover:from-blue-500 hover:to-blue-600 transition-all duration-200 shadow-lg hover:shadow-xl"
+                >
+                  <Smartphone className="w-5 h-5 mr-2" />
+                  Setup RFID Card
+                </Button>
+              </div>
+            ) : (showRfidSetup || isEditingRfid) ? (
+              <div className="space-y-6">
+                {/* Student Name Input */}
+                <div className="p-4 border border-blue-200 rounded-xl bg-blue-50">
+                  <h3 className="font-semibold text-blue-800 mb-3">Student Information</h3>
+                  <input
+                    type="text"
+                    placeholder="Enter your full name as per college records"
+                    value={studentName}
+                    onChange={(e) => setStudentName(e.target.value)}
+                    className="w-full p-3 border border-blue-300 rounded-lg focus:outline-none focus:border-blue-500"
+                    disabled={verificationLoading}
+                  />
+                  <p className="text-sm text-blue-700 mt-2">
+                    This name will be associated with your RFID card for verification
+                  </p>
+                </div>
+
+                {/* NFC Support Status */}
+                <div className="p-4 bg-gray-50 rounded-xl">
+                  <div className="flex items-center gap-2 mb-2">
+                    {isNfcSupported ? (
+                      <CheckCircle className="h-5 w-5 text-green-500" />
+                    ) : (
+                      <AlertCircle className="h-5 w-5 text-red-500" />
+                    )}
+                    <span className={`font-semibold ${isNfcSupported ? 'text-green-700' : 'text-red-700'}`}>
+                      NFC {isNfcSupported ? 'Supported' : 'Not Supported'}
+                    </span>
+                  </div>
+                  {isNfcSupported && (
+                    <div className="flex items-center gap-2">
+                      {isNfcEnabled ? (
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 text-yellow-500" />
+                      )}
+                      <span className={`text-sm ${isNfcEnabled ? 'text-green-700' : 'text-yellow-700'}`}>
+                        NFC {isNfcEnabled ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Method 1: NFC Scan */}
+                {isNfcSupported && (
+                  <div className="p-4 border border-blue-200 rounded-xl bg-blue-50">
+                    <h3 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                      <Smartphone className="h-4 w-4" />
+                      Method 1: NFC Scan (Recommended)
+                    </h3>
+                    <p className="text-sm text-blue-700 mb-3">
+                      Use your phone's NFC to automatically detect your RFID card serial number.
+                    </p>
+                    
+                    {!isNfcEnabled && (
+                      <Button
+                        onClick={requestNfcPermission}
+                        className="w-full mb-3"
+                        variant="outline"
+                      >
+                        Enable NFC Permission
+                      </Button>
+                    )}
+                    
+                    {isNfcEnabled && (
+                      <Button
+                        onClick={startNfcScan}
+                        className="w-full mb-3"
+                      >
+                        Scan RFID Card
+                      </Button>
+                    )}
+
+                    {detectedCard && (
+                      <div className="p-3 bg-green-100 border border-green-300 rounded-lg">
+                        <p className="text-sm text-green-800 mb-2">Detected RFID Serial:</p>
+                        <div className="flex items-center gap-2">
+                          <code className="bg-green-200 px-2 py-1 rounded text-sm font-mono flex-1">
+                            {detectedCard}
+                          </code>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => copyToClipboard(detectedCard)}
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Method 2: Manual Input */}
+                <div className="p-4 border border-gray-200 rounded-xl bg-gray-50">
+                  <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                    <Wifi className="h-4 w-4" />
+                    Method 2: Manual Input
+                  </h3>
+                  <p className="text-sm text-gray-700 mb-3">
+                    If you know your RFID serial number or got it from another source, enter it here.
+                  </p>
+                  
+                  <input
+                    type="text"
+                    placeholder="Enter your RFID serial number (e.g., A1B2C3D4)"
+                    value={rfidCardId}
+                    onChange={(e) => setRfidCardId(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 font-mono"
+                  />
+                </div>
+
+                {/* Alternative Methods - Only for first-time users */}
+                {!isEditingRfid && (
+                  <div className="p-4 border border-yellow-200 rounded-xl bg-yellow-50">
+                    <h3 className="font-semibold text-yellow-800 mb-3">How to Find Your RFID Card Number</h3>
+                    <div className="space-y-2 text-sm text-yellow-700">
+                      <p>• <strong>Ask Your College:</strong> Contact IT department for your RFID serial number</p>
+                      <p>• <strong>Use Another Device:</strong> Ask a friend with NFC-enabled phone to scan your card</p>
+                      <p>• <strong>Check Documentation:</strong> Look for any printed numbers or QR codes on your ID card</p>
+                      <p>• <strong>Visit Any Shop:</strong> Ask shop staff to help you find your RFID number</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Registration Info Section */}
+                <div className="p-4 border border-blue-200 rounded-xl bg-blue-50">
+                  <h3 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                    <Wallet className="h-4 w-4" />
+                    {isEditingRfid ? 'Update RFID Card' : 'Ready to Register'}
+                  </h3>
+                  <p className="text-sm text-blue-700 mb-3">
+                    {isEditingRfid 
+                      ? 'Update your RFID card details below.'
+                      : 'Your RFID card details are ready for registration. Click the button below to register your card and enable RFID-based payments.'
+                    }
+                  </p>
+                  
+                  <div className="p-3 bg-green-100 border border-green-300 rounded-lg mb-3">
+                    <p className="text-sm text-green-800 font-medium">
+                      ✅ RFID Card ID: <strong>{rfidCardId}</strong>
+                    </p>
+                    <p className="text-sm text-green-800 font-medium">
+                      👤 Student Name: <strong>{studentName}</strong>
+                    </p>
+                  </div>
+                  
+                  <div className="p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
+                    <p className="text-sm text-yellow-800 font-medium">
+                      💡 After registration, you can make payments by simply scanning your RFID card at any shop!
+                    </p>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowRfidSetup(false);
+                      setIsEditingRfid(false);
+                      setRfidCardId('');
+                      setStudentName('');
+                    }}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={verifyRfidCard}
+                    disabled={!rfidCardId || !studentName.trim() || verificationLoading}
+                    className="flex-1 bg-gradient-to-r from-green-400 to-green-500 text-white font-bold hover:from-green-500 hover:to-green-600 disabled:opacity-50"
+                  >
+                    {verificationLoading ? 'Verifying...' : (isEditingRfid ? '✅ Update RFID Card' : '✅ Verify RFID Card')}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              /* RFID Card Display - For existing users */
+              <div className="p-6 border border-green-200 rounded-xl bg-green-50">
+                <h3 className="font-semibold text-green-800 mb-4 flex items-center gap-2">
+                  <Wallet className="h-5 w-5" />
+                  RFID Card Registered
+                </h3>
+                
+                <div className="space-y-4">
+                  <div className="p-4 bg-white border border-green-300 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-600">RFID Card ID</p>
+                        <p className="text-lg font-mono font-bold text-green-800">{currentRfidCard}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-600">Status</p>
+                        <div className="flex items-center gap-2 text-green-600">
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          <span className="text-sm font-medium">Active</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h4 className="font-medium text-blue-800 mb-2">How to Use RFID Payments</h4>
+                    <div className="text-sm text-blue-700 space-y-1">
+                      <p>• <strong>Visit any shop</strong> that accepts RFID payments</p>
+                      <p>• <strong>Scan your RFID card</strong> at the payment terminal</p>
+                      <p>• <strong>Payment will be deducted</strong> automatically from your wallet</p>
+                      <p>• <strong>No need to enter PIN</strong> or confirm manually</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowRfidSetup(false);
+                        setIsEditingRfid(true);
+                        setRfidCardId(currentRfidCard);
+                        setStudentName(''); // Will be filled from backend
+                      }}
+                      className="flex-1 border-orange-300 text-orange-700 hover:bg-orange-50"
+                    >
+                      ✏️ Edit RFID Card
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setShowRfidSetup(false);
+                        setIsEditingRfid(false);
+                      }}
+                      className="flex-1 bg-gradient-to-r from-green-400 to-green-500 text-white font-bold hover:from-green-500 hover:to-green-600"
+                    >
+                      ✅ Done
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Add Money Modal */}

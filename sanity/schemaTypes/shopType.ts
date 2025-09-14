@@ -52,5 +52,29 @@ export const shopType = defineType({
       validation: Rule => Rule.required().email(),
       description: "Email address for stock notifications",
     }),
+    defineField({
+      name: "paymentId",
+      type: "string",
+      title: "Razorpay Account Number",
+      description: "Shop owner's Razorpay account number for receiving payments",
+    }),
+    defineField({
+      name: "bankAccountNumber",
+      type: "string",
+      title: "Bank Account Number",
+      description: "Shop owner's bank account number",
+    }),
+    defineField({
+      name: "bankIfsc",
+      type: "string",
+      title: "Bank IFSC Code",
+      description: "Bank IFSC code (e.g., HDFC0000001)",
+    }),
+    defineField({
+      name: "bankAccountName",
+      type: "string",
+      title: "Bank Account Name",
+      description: "Name on the bank account",
+    }),
   ],
 });

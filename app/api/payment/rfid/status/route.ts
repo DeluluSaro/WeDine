@@ -6,6 +6,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const orderId = searchParams.get('orderId');
     const shopId = searchParams.get('shopId');
+    const userEmail = searchParams.get('userEmail');
+    const cardId = searchParams.get('cardId');
 
     if (orderId) {
       // Check payment status for specific order
@@ -38,6 +40,48 @@ export async function GET(request: NextRequest) {
         enabledAt: order.rfidPaymentEnabledAt
       });
 
+    } else if (cardId) {
+      // Check RFID card status by card ID
+      const rfidCard = await writeClient.fetch(
+        `*[_type == "rfidCard" && cardId == $cardId][0]{
+          _id,
+          cardId,
+          userEmail,
+          studentName,
+          isActive,
+          isBlocked,
+          createdAt,
+          lastUsedAt
+        }`,
+        { cardId }
+      );
+
+      return NextResponse.json({ 
+        success: true,
+        rfidCard: rfidCard || null
+      });
+
+    } else if (userEmail) {
+      // Check RFID card status for user
+      const rfidCard = await writeClient.fetch(
+        `*[_type == "rfidCard" && userEmail == $userEmail && isActive == true && isBlocked != true][0]{
+          _id,
+          cardId,
+          userEmail,
+          studentName,
+          isActive,
+          isBlocked,
+          createdAt,
+          lastUsedAt
+        }`,
+        { userEmail }
+      );
+
+      return NextResponse.json({ 
+        success: true,
+        rfidCard: rfidCard || null
+      });
+
     } else if (shopId) {
       // Check device status for shop
       // In a real implementation, this would check actual device connectivity
@@ -57,7 +101,7 @@ export async function GET(request: NextRequest) {
     } else {
       return NextResponse.json({ 
         success: false, 
-        message: 'Order ID or Shop ID required' 
+        message: 'Order ID, Shop ID, User Email, or Card ID required' 
       }, { status: 400 });
     }
 

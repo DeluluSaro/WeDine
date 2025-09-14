@@ -7,7 +7,9 @@ import { reviewType } from './ReviewType'
 import { cartItemType } from './AddtoCart';
 import { adminCredentialsType } from './adminCredentials';
 import walletType from './walletType';
+import rfidCardType from './rfidCardType';
+import razorpayPaymentType from './razorpayPaymentType';
 
 export const schema: { types: SchemaTypeDefinition[] } = {
-  types: [shopType, foodItemType, orderType, orderHistoryType, reviewType, cartItemType, adminCredentialsType, walletType],
+  types: [shopType, foodItemType, orderType, orderHistoryType, reviewType, cartItemType, adminCredentialsType, walletType, rfidCardType, razorpayPaymentType],
 }
