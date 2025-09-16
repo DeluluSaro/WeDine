@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Minus, Trash2, CreditCard, DollarSign, AlertCircle, CheckCircle } from 'lucide-react';
+import { X, CreditCard, DollarSign, AlertCircle, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { useCart, CartItem } from './CartContext';
+import { CartItem } from './CartContext';
 import Image from 'next/image';
 
 // --- INTERFACES ---
@@ -27,15 +27,13 @@ interface RazorpayOptions {
   theme: { color: string; };
 }
 
-interface WindowWithRazorpay extends Window {
-  Razorpay: new (options: RazorpayOptions) => { open: () => void; };
-}
+// Removed unused interface
 
 interface OrderData {
     razorpayOrderId: string;
     amount: number; // This amount is in paise for online, rupees for COD
-    cartItems?: any[];
-    shopPayments?: any[];
+    cartItems?: CartItem[];
+    shopPayments?: unknown[];
     orders?: Array<{
         orderId: string;
         orderIdentifier: string;
@@ -49,7 +47,7 @@ interface OrderData {
 
 const loadRazorpayScript = (): Promise<void> => {
   return new Promise((resolve, reject) => {
-    if ((window as any).Razorpay) return resolve();
+    if ((window as unknown as { Razorpay?: unknown }).Razorpay) return resolve();
     const script = document.createElement('script');
     script.src = 'https://checkout.razorpay.com/v1/checkout.js';
     script.async = true;
@@ -65,7 +63,6 @@ interface BuyNowPopupProps {
   isOpen: boolean;
   onClose: () => void;
   cartItems: CartItem[];
-  onUpdateQuantity: (id: string, quantity: number) => void;
   onRemoveItem: (id: string) => void;
   onPlaceOrder: (paymentMethod: 'cod' | 'online') => void;
   userDetails?: { userId: string; email?: string; name?: string; phone?: string; };
@@ -77,7 +74,6 @@ export default function BuyNowPopup({
   isOpen,
   onClose,
   cartItems,
-  onUpdateQuantity,
   onRemoveItem,
   onPlaceOrder,
   userDetails

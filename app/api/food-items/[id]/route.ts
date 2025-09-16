@@ -153,14 +153,14 @@ export async function PUT(
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     if (!writeClient.config().token) {
       throw new Error('Sanity writeClient is missing a write-enabled token!');
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     // Check if food item exists
     const existingItem = await client.fetch(
