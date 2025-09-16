@@ -7,10 +7,10 @@ import { client, writeClient } from '@/sanity/lib/client';
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     const foodItem = await client.fetch(
       `*[_type == "foodItem" && _id == $id][0] {
@@ -76,14 +76,14 @@ export async function GET(
  */
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     if (!writeClient.config().token) {
       throw new Error('Sanity writeClient is missing a write-enabled token!');
     }
 
-    const { id } = params;
+    const { id } = await params;
     const body = await req.json();
 
     // Check if food item exists

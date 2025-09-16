@@ -4,7 +4,7 @@ import crypto from 'crypto';
 
 export async function PUT(request: NextRequest) {
   try {
-    const { rfidCardId, userEmail, studentName, adminKey } = await request.json();
+    const { rfidCardId, userEmail, studentName, studentId, collegeName, cardType, adminKey } = await request.json();
 
     // Validate required fields
     if (!rfidCardId || !userEmail || !studentName || !adminKey) {
@@ -14,8 +14,9 @@ export async function PUT(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Verify admin key
-    if (adminKey !== process.env.NEXT_PUBLIC_ADMIN_RFID_KEY) {
+    // Verify admin key (check both possible env variables)
+    const validAdminKey = process.env.NEXT_PUBLIC_ADMIN_RFID_KEY || process.env.ADMIN_RFID_KEY;
+    if (adminKey !== validAdminKey) {
       return NextResponse.json({ 
         success: false, 
         message: 'Invalid admin key' 
@@ -35,16 +36,34 @@ export async function PUT(request: NextRequest) {
       }, { status: 409 });
     }
 
+    // Check if user already has a card
+    const existingUserCard = await writeClient.fetch(
+      `*[_type == "rfidCard" && userEmail == $userEmail && isActive == true][0]`,
+      { userEmail }
+    );
+
+    if (existingUserCard) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'User already has an active RFID card' 
+      }, { status: 409 });
+    }
+
     // Create new RFID card registration
     const rfidCard = {
       _type: 'rfidCard',
       cardId: rfidCardId,
       userEmail: userEmail,
       studentName: studentName,
+      studentId: studentId || '',
+      collegeName: collegeName || '',
+      cardType: cardType || 'student',
       isActive: true,
       isBlocked: false,
-      createdAt: new Date().toISOString(),
-      lastUsedAt: null
+      registeredAt: new Date().toISOString(),
+      registeredBy: 'admin',
+      lastUsedAt: null,
+      notes: `Registered via API on ${new Date().toLocaleString()}`
     };
 
     const result = await writeClient.create(rfidCard);
@@ -52,7 +71,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ 
       success: true,
       message: 'RFID card registered successfully',
-      rfidCard: result
+      card: result
     });
 
   } catch (error) {
@@ -308,82 +327,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// API to register RFID cards
-export async function PUT(request: NextRequest) {
-  try {
-    const { rfidCardId, userEmail, studentName, studentId, collegeName, cardType, adminKey } = await request.json();
-
-    // Verify admin key
-    if (adminKey !== process.env.ADMIN_RFID_KEY) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Unauthorized' 
-      }, { status: 401 });
-    }
-
-    if (!rfidCardId || !userEmail) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'RFID card ID and user email are required' 
-      }, { status: 400 });
-    }
-
-    // Check if card already exists
-    const existingCard = await writeClient.fetch(
-      `*[_type == "rfidCard" && cardId == $cardId][0]`,
-      { cardId: rfidCardId }
-    );
-
-    if (existingCard) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'RFID card already registered' 
-      }, { status: 400 });
-    }
-
-    // Check if user already has a card
-    const existingUserCard = await writeClient.fetch(
-      `*[_type == "rfidCard" && userEmail == $userEmail && isActive == true][0]`,
-      { userEmail }
-    );
-
-    if (existingUserCard) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'User already has an active RFID card' 
-      }, { status: 400 });
-    }
-
-    // Create RFID card record
-    const rfidCard = await writeClient.create({
-      _type: 'rfidCard',
-      cardId: rfidCardId,
-      userEmail: userEmail,
-      studentName: studentName || '',
-      studentId: studentId || '',
-      collegeName: collegeName || '',
-      cardType: cardType || 'student',
-      isActive: true,
-      isBlocked: false,
-      registeredAt: new Date().toISOString(),
-      registeredBy: 'admin', // You can get this from session
-      notes: `Registered via API on ${new Date().toLocaleString()}`
-    });
-
-    return NextResponse.json({ 
-      success: true, 
-      message: 'RFID card registered successfully',
-      card: rfidCard
-    });
-
-  } catch (error) {
-    console.error('Error registering RFID card:', error);
-    return NextResponse.json({ 
-      success: false, 
-      message: 'Failed to register RFID card' 
-    }, { status: 500 });
-  }
-}
 
 // API to get RFID card details
 export async function GET(request: NextRequest) {
