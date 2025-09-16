@@ -119,7 +119,7 @@ const FoodDetailPage = () => {
     }
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!user || !food) return;
     
     // Check if item is out of stock
@@ -129,7 +129,8 @@ const FoodDetailPage = () => {
     }
     
     setAddToCartState('adding');
-    addToCart({
+    
+    const result = await addToCart({
       _id: `${food._id}-${Date.now()}`,
       quantity,
       price: food.price || 0,
@@ -141,8 +142,14 @@ const FoodDetailPage = () => {
         shopRef: { shopName: food.shopRef?.shopName },
       },
     });
-    setAddToCartState('added');
-    setTimeout(() => setAddToCartState('idle'), 1200);
+    
+    if (result.success) {
+      setAddToCartState('added');
+      setTimeout(() => setAddToCartState('idle'), 1200);
+    } else {
+      setAddToCartState('idle');
+      toast.error(result.error || 'Failed to add item to cart');
+    }
   };
 
   

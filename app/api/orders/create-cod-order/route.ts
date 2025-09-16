@@ -44,11 +44,44 @@ export async function POST(req: NextRequest) {
       _id, 
       price, 
       foodName,
+      quantity,
       "shopName": shopRef->shopName,
       "shopId": shopRef->_id
     }`;
     const sanityItems: any[] = await client.fetch(sanityQuery, { itemIds });
     const sanityItemsMap = new Map(sanityItems.map(item => [item._id, item]));
+
+    // --- STOCK VALIDATION CHECKPOINT ---
+    console.log('🔍 Validating stock for COD order...');
+    const stockValidationErrors = [];
+    
+    for (const cartItem of cartItems) {
+      const sanityItem = sanityItemsMap.get(cartItem.foodId._id);
+      if (!sanityItem) {
+        throw new Error(`Item ${cartItem.foodId.foodName} not found in database`);
+      }
+      
+      // Check stock if quantity is managed
+      if (sanityItem.quantity !== null && sanityItem.quantity !== undefined) {
+        if (cartItem.quantity > sanityItem.quantity) {
+          stockValidationErrors.push(
+            `${sanityItem.foodName}: Requested ${cartItem.quantity}, but only ${sanityItem.quantity} available`
+          );
+        }
+      }
+    }
+    
+    // Return error if any items have insufficient stock
+    if (stockValidationErrors.length > 0) {
+      console.log('❌ Stock validation failed:', stockValidationErrors);
+      return NextResponse.json({
+        error: 'Insufficient stock for some items',
+        details: stockValidationErrors,
+        insufficientStock: true
+      }, { status: 400 });
+    }
+    
+    console.log('✅ Stock validation passed - processing COD order');
 
     // Group items by shop for separate orders
     const shopOrders: { [shopId: string]: any } = {};
@@ -127,6 +160,27 @@ export async function POST(req: NextRequest) {
     }
 
     const totalAmount = Object.values(shopOrders).reduce((sum, order) => sum + order.total, 0);
+
+    // --- REDUCE STOCK for all ordered items ---
+    console.log('📦 Reducing stock for ordered items...');
+    for (const cartItem of cartItems) {
+      const sanityItem = sanityItemsMap.get(cartItem.foodId._id);
+      if (sanityItem && sanityItem.quantity !== null && sanityItem.quantity !== undefined) {
+        const newQuantity = Math.max(0, sanityItem.quantity - cartItem.quantity);
+        console.log(`📉 Reducing ${sanityItem.foodName} stock: ${sanityItem.quantity} -> ${newQuantity}`);
+        
+        try {
+          await writeClient
+            .patch(cartItem.foodId._id)
+            .set({ quantity: newQuantity })
+            .commit();
+        } catch (stockError) {
+          console.error(`Failed to reduce stock for ${sanityItem.foodName}:`, stockError);
+          // Continue with other items even if one fails
+        }
+      }
+    }
+    console.log('✅ Stock reduction completed');
 
     return NextResponse.json({
       success: true,

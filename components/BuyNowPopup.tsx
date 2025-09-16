@@ -32,8 +32,10 @@ interface WindowWithRazorpay extends Window {
 }
 
 interface OrderData {
-    orderId: string;
+    razorpayOrderId: string;
     amount: number; // This amount is in paise for online, rupees for COD
+    cartItems?: any[];
+    shopPayments?: any[];
     orders?: Array<{
         orderId: string;
         orderIdentifier: string;
@@ -115,7 +117,12 @@ export default function BuyNowPopup({
         let errorMsg = `Failed to create order (Status: ${orderResponse.status})`;
         try {
             const errorData = await orderResponse.json();
-            errorMsg = errorData.error || errorMsg;
+            if (errorData.insufficientStock && errorData.details) {
+              // Handle stock validation errors specifically
+              errorMsg = `Insufficient stock:\n${errorData.details.join('\n')}`;
+            } else {
+              errorMsg = errorData.error || errorMsg;
+            }
         } catch (e) {
             console.error(`Could not parse error response JSON from ${endpoint}.`);
         }
@@ -147,41 +154,74 @@ export default function BuyNowPopup({
       const options: RazorpayOptions = {
         key: razorpayKey,
         amount: orderData.amount, // Amount is already in paise from backend
-        order_id: orderData.orderId,
+        order_id: orderData.razorpayOrderId,
         name: 'WeDine',
         description: 'Complete your payment',
         handler: async (response: RazorpayResponse) => {
           try {
-            // For test mode, we'll use the orderIds instead of signature verification
-            const verificationData = orderData.orders && orderData.orders.length > 0 
-              ? { orderIds: orderData.orders.map(order => order.orderId) }
-              : { ...response };
+            console.log('💳 Payment completed, verifying and creating orders...');
+            
+            // Determine if this is test mode
+            // In test mode, Razorpay may not provide payment_id or signature
+            const isTestMode = !response.razorpay_payment_id || 
+                             response.razorpay_payment_id.startsWith('pay_test') ||
+                             process.env.NODE_ENV === 'development';
+            
+            const paymentData = {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              isTestMode
+            };
 
-            const verifyResponse = await fetch('/api/payment/verify-and-update', {
+            // Call the verification API to create orders AFTER successful payment
+            const verifyResponse = await fetch('/api/payment/verify-and-create-order', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(verificationData)
+              body: JSON.stringify({
+                paymentData,
+                cartItems,
+                userDetails
+              })
             });
 
             if (!verifyResponse.ok) {
               const errorData = await verifyResponse.json();
+              if (errorData.refundRequired) {
+                throw new Error(`Payment successful but stock insufficient. Refund will be processed.\n${errorData.details?.join('\n') || ''}`);
+              }
               throw new Error(errorData.error || 'Payment verification failed');
             }
+
+            const verifyData = await verifyResponse.json();
+            console.log('✅ Payment verified and orders created:', verifyData);
 
             await handlePostPaymentSuccess('online');
 
           } catch (error) {
+            console.error('Payment verification error:', error);
             setPaymentError(error instanceof Error ? error.message : 'Payment verification failed');
+            setIsOrderProcessing(false);
           }
         },
-        modal: { ondismiss: () => setIsOrderProcessing(false) },
-        prefill: { name: userDetails?.name || '', email: userDetails?.email || '', contact: userDetails?.phone || '' },
+        modal: { 
+          ondismiss: () => {
+            console.log('Payment modal dismissed by user');
+            setIsOrderProcessing(false);
+          }
+        },
+        prefill: { 
+          name: userDetails?.name || '', 
+          email: userDetails?.email || '', 
+          contact: userDetails?.phone || '' 
+        },
         theme: { color: '#FFB300' }
       };
 
       const razorpay = new (window as any).Razorpay(options);
       razorpay.open();
     } catch (error) {
+      console.error('Online payment setup error:', error);
       setPaymentError(error instanceof Error ? error.message : 'Online payment failed');
       setIsOrderProcessing(false);
     }

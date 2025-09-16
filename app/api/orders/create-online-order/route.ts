@@ -64,12 +64,45 @@ export async function POST(req: NextRequest) {
       _id, 
       price, 
       foodName,
+      quantity,
       "shopName": shopRef->shopName,
       "shopId": shopRef->_id,
       "razorpayAccountId": shopRef->razorpayAccountId
     }`;
     const sanityItems: any[] = await client.fetch(sanityQuery, { itemIds });
     const sanityItemsMap = new Map(sanityItems.map(item => [item._id, item]));
+
+    // --- STOCK VALIDATION CHECKPOINT ---
+    console.log('🔍 Validating stock before creating Razorpay order...');
+    const stockValidationErrors = [];
+    
+    for (const cartItem of cartItems) {
+      const sanityItem = sanityItemsMap.get(cartItem.foodId._id);
+      if (!sanityItem) {
+        throw new Error(`Item ${cartItem.foodId.foodName} not found in database`);
+      }
+      
+      // Check stock if quantity is managed
+      if (sanityItem.quantity !== null && sanityItem.quantity !== undefined) {
+        if (cartItem.quantity > sanityItem.quantity) {
+          stockValidationErrors.push(
+            `${sanityItem.foodName}: Requested ${cartItem.quantity}, but only ${sanityItem.quantity} available`
+          );
+        }
+      }
+    }
+    
+    // Return error if any items have insufficient stock
+    if (stockValidationErrors.length > 0) {
+      console.log('❌ Stock validation failed:', stockValidationErrors);
+      return NextResponse.json({
+        error: 'Insufficient stock for some items',
+        details: stockValidationErrors,
+        insufficientStock: true
+      }, { status: 400 });
+    }
+    
+    console.log('✅ Stock validation passed - creating Razorpay order for payment...');
 
     // Group items by shop and calculate payments
     const shopPayments: { [shopId: string]: ShopPaymentInfo } = {};
@@ -136,65 +169,20 @@ export async function POST(req: NextRequest) {
 
     const razorpayOrder = await razorpay.orders.create(razorpayOrderOptions);
 
-    // Create temporary order records for tracking
-    const now = new Date().toISOString();
-    const createdOrders = [];
-
-    for (const [shopId, shopPayment] of Object.entries(shopPayments)) {
-      const timestamp = Date.now();
-      const randomSuffix = Math.random().toString(36).substring(2, 8);
-      const orderIdentifier = `ONLINE-${timestamp}-${shopId.slice(-6)}-${randomSuffix}`;
-
-      // Create pending order document
-      const orderDoc = {
-        _type: 'order',
-        userId: userDetails.userId,
-        userEmail: userDetails.email,
-        orderIdentifier,
-        items: shopPayment.items,
-        total: shopPayment.amount,
-        paymentMethod: 'online',
-        orderStatus: false, // Will be updated after payment verification
-        status: 'payment_pending',
-        paymentStatus: false,
-        createdAt: now,
-        updatedAt: now,
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        isArchived: false,
-        // Store Razorpay order details
-        paymentDetails: {
-          razorpayOrderId: razorpayOrder.id,
-          razorpayAccountId: shopPayment.razorpayAccountId,
-          paymentStatus: 'pending',
-          transferAmount: shopPayment.amount
-        },
-        // Include user details for delivery
-        userDetails: {
-          name: userDetails.name,
-          phone: userDetails.phone,
-          address: userDetails.address
-        }
-      };
-
-      const createdOrder = await writeClient.create(orderDoc);
-      createdOrders.push({
-        orderId: createdOrder._id,
-        orderIdentifier,
-        shopName: shopPayment.shopName,
-        amount: shopPayment.amount,
-        razorpayAccountId: shopPayment.razorpayAccountId
-      });
-    }
+    // Note: Orders will be created ONLY after successful payment verification
+    // This prevents creating orders for failed/incomplete payments
+    console.log('✅ Razorpay order created successfully - awaiting payment...');
 
     return NextResponse.json({
       success: true,
-      message: 'Razorpay order created successfully',
+      message: 'Razorpay order created successfully - payment required',
       razorpayOrderId: razorpayOrder.id,
       amount: razorpayOrder.amount,
       currency: razorpayOrder.currency,
-      orders: createdOrders,
       totalAmount,
-      orderCount: createdOrders.length,
+      // Store cart items and shop payments for post-payment processing
+      cartItems,
+      shopPayments: Object.values(shopPayments),
       // Client-side payment options
       paymentOptions: {
         key: process.env.RAZORPAY_KEY_ID,

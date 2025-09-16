@@ -179,7 +179,15 @@ const CartPage = () => {
                               <Minus className="w-4 h-4" style={{ color: COLORS.brown }} />
                             </button>
                             <span className="font-bold w-6 text-center" style={{ color: COLORS.brownDark }}>{item.quantity}</span>
-                            <button onClick={() => updateQuantity(item._id, (item.quantity || 0) + 1)} className="p-1 rounded-full hover:bg-yellow-100 transition">
+                            <button 
+                              onClick={async () => {
+                                const result = await updateQuantity(item._id, (item.quantity || 0) + 1);
+                                if (!result.success) {
+                                  alert(result.error);
+                                }
+                              }} 
+                              className="p-1 rounded-full hover:bg-yellow-100 transition"
+                            >
                               <Plus className="w-4 h-4" style={{ color: COLORS.brown }} />
                             </button>
                           </div>

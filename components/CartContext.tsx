@@ -18,11 +18,11 @@ export interface CartItem {
 
 interface CartContextType {
   cartItems: CartItem[];
-  addToCart: (item: CartItem) => void;
+  addToCart: (item: CartItem) => Promise<{ success: boolean; error?: string }>;
   decrement: (id: string) => void;
   deleteItem: (id: string) => void;
   clearCart: () => void;
-  updateQuantity: (id: string, quantity: number) => void;
+  updateQuantity: (id: string, quantity: number) => Promise<{ success: boolean; error?: string }>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -46,16 +46,64 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem("cart", JSON.stringify(cartItems));
   }, [cartItems]);
 
-  const addToCart = (item: CartItem) => {
-    setCartItems((prev) => {
-      const idx = prev.findIndex((i) => i.foodId._id === item.foodId._id);
-      if (idx !== -1) {
-        const updated = [...prev];
-        updated[idx].quantity += item.quantity;
-        return updated;
+  const addToCart = async (item: CartItem): Promise<{ success: boolean; error?: string }> => {
+    try {
+      console.log(`🛒 Adding ${item.foodId.foodName} to cart - checking stock...`);
+      
+      // Fetch current stock from API
+      const response = await fetch(`/api/food-items/${item.foodId._id}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch item details');
       }
-      return [...prev, item];
-    });
+      
+      const foodItem = await response.json();
+      const availableStock = foodItem.quantity || 0;
+      
+      // Check if stock is managed for this item
+      if (foodItem.quantity !== null && foodItem.quantity !== undefined) {
+        const existingItem = cartItems.find((i) => i.foodId._id === item.foodId._id);
+        const currentCartQuantity = existingItem ? existingItem.quantity : 0;
+        const totalQuantity = currentCartQuantity + item.quantity;
+        
+        if (totalQuantity > availableStock) {
+          return {
+            success: false,
+            error: `Not available! Only ${availableStock} pieces left in stock. You're trying to add ${totalQuantity} pieces.`
+          };
+        }
+        
+        console.log(`✅ Stock check passed: ${availableStock} available, adding ${item.quantity}`);
+      } else {
+        console.log(`⚠️ Stock not managed for ${item.foodId.foodName} - allowing unlimited`);
+      }
+      
+      // Add to cart if stock validation passes
+      setCartItems((prev) => {
+        const idx = prev.findIndex((i) => i.foodId._id === item.foodId._id);
+        if (idx !== -1) {
+          const updated = [...prev];
+          updated[idx].quantity += item.quantity;
+          return updated;
+        }
+        return [...prev, item];
+      });
+      
+      return { success: true };
+      
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      return {
+        success: false,
+        error: 'Failed to add item to cart. Please try again.'
+      };
+    }
   };
 
   const decrement = (id: string) => {
@@ -74,12 +122,65 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const clearCart = () => setCartItems([]);
 
-  const updateQuantity = (id: string, quantity: number) => {
-    setCartItems((prev) =>
-      prev.map((item) =>
-        item._id === id ? { ...item, quantity: Math.max(1, quantity) } : item
-      )
-    );
+  const updateQuantity = async (id: string, quantity: number): Promise<{ success: boolean; error?: string }> => {
+    try {
+      // Find the cart item
+      const cartItem = cartItems.find(item => item._id === id);
+      if (!cartItem) {
+        return { success: false, error: 'Item not found in cart' };
+      }
+      
+      // Ensure minimum quantity of 1
+      const newQuantity = Math.max(1, quantity);
+      
+      console.log(`🔄 Updating ${cartItem.foodId.foodName} quantity to ${newQuantity} - checking stock...`);
+      
+      // Fetch current stock from API
+      const response = await fetch(`/api/food-items/${cartItem.foodId._id}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch item details');
+      }
+      
+      const foodItem = await response.json();
+      const availableStock = foodItem.quantity || 0;
+      
+      // Check if stock is managed for this item
+      if (foodItem.quantity !== null && foodItem.quantity !== undefined) {
+        if (newQuantity > availableStock) {
+          return {
+            success: false,
+            error: `Not available! Only ${availableStock} pieces left in stock. You're trying to set ${newQuantity} pieces.`
+          };
+        }
+        
+        console.log(`✅ Stock check passed: ${availableStock} available, setting to ${newQuantity}`);
+      } else {
+        console.log(`⚠️ Stock not managed for ${cartItem.foodId.foodName} - allowing unlimited`);
+      }
+      
+      // Update quantity if stock validation passes
+      setCartItems((prev) =>
+        prev.map((item) =>
+          item._id === id ? { ...item, quantity: newQuantity } : item
+        )
+      );
+      
+      return { success: true };
+      
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+      return {
+        success: false,
+        error: 'Failed to update quantity. Please try again.'
+      };
+    }
   };
 
   return (
