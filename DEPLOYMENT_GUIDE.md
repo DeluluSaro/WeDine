@@ -80,7 +80,8 @@ After successful deployment, verify:
 - [ ] **Stock validation prevents over-ordering**
 - [ ] **COD orders work correctly**
 - [ ] **Online payments work (Razorpay test mode)**
-- [ ] **Order history displays**
+- [ ] **Active orders display properly (from 'order' collection)**
+- [ ] **Order history displays properly (from 'orderHistory' collection)**
 - [ ] **Admin panel accessible**
 - [ ] **RFID functionality (if needed)**
 

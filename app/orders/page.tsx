@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { FloatingNav } from "@/components/ui/floating-navbar";
-import { BookIcon, HomeIcon, InfoIcon, MailIcon, CheckCircle, Clock, Truck, Package, History, Zap, BookOpen, Wallet, CreditCard, Wifi, WifiOff } from "lucide-react";
+import { HomeIcon, MailIcon, CheckCircle, Clock, Truck, Package, History, Zap, BookOpen, Wallet } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -17,7 +17,7 @@ interface OrderItem {
 
 interface Order {
   _id: string;
-  orderId?: number;
+  orderIdentifier?: string;
   createdAt?: string;
   status?: string;
   foodName?: string;
@@ -31,6 +31,11 @@ interface Order {
   lifecycleNotes?: string;
   paymentStatus?: boolean;
   orderStatus?: boolean;
+  userDetails?: {
+    name?: string;
+    phone?: string;
+    address?: string;
+  };
 }
 
 const OrdersPage = () => {
@@ -40,9 +45,7 @@ const OrdersPage = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [orderType, setOrderType] = useState<'active' | 'history'>('history');
-  const [rfidPaymentMode, setRfidPaymentMode] = useState<{[key: string]: boolean}>({});
-  const [rfidDeviceStatus, setRfidDeviceStatus] = useState<{[key: string]: any}>({});
+  const [orderType, setOrderType] = useState<'active' | 'history'>('active');
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -71,83 +74,6 @@ const OrdersPage = () => {
       });
   }, [user, orderType]);
 
-  // Check RFID device status
-  const checkRfidDeviceStatus = async (shopId: string) => {
-    try {
-      const response = await fetch(`/api/payment/rfid/status?shopId=${shopId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setRfidDeviceStatus(prev => ({ ...prev, [shopId]: data }));
-      }
-    } catch (error) {
-      console.error('Error checking RFID device status:', error);
-    }
-  };
-
-  // Toggle RFID payment mode
-  const toggleRfidPaymentMode = async (orderId: string, shopId: string, amount: number) => {
-    try {
-      const isCurrentlyActive = rfidPaymentMode[orderId];
-      
-      if (isCurrentlyActive) {
-        // Disable RFID payment mode
-        setRfidPaymentMode(prev => ({ ...prev, [orderId]: false }));
-        toast.success('RFID payment mode disabled');
-      } else {
-        // Enable RFID payment mode
-        const response = await fetch('/api/payment/rfid/enable', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            orderId,
-            shopId,
-            amount,
-            userEmail: user?.emailAddresses?.[0]?.emailAddress
-          })
-        });
-
-        if (response.ok) {
-          setRfidPaymentMode(prev => ({ ...prev, [orderId]: true }));
-          toast.success('RFID payment mode enabled. Scan your ID card to pay.');
-          
-          // Start polling for payment status
-          startPaymentPolling(orderId);
-        } else {
-          const errorData = await response.json();
-          toast.error(errorData.message || 'Failed to enable RFID payment');
-        }
-      }
-    } catch (error) {
-      console.error('Error toggling RFID payment mode:', error);
-      toast.error('Failed to toggle RFID payment mode');
-    }
-  };
-
-  // Start polling for payment status
-  const startPaymentPolling = (orderId: string) => {
-    const pollInterval = setInterval(async () => {
-      try {
-        const response = await fetch(`/api/payment/rfid/status?orderId=${orderId}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.paymentCompleted) {
-            clearInterval(pollInterval);
-            setRfidPaymentMode(prev => ({ ...prev, [orderId]: false }));
-            toast.success('Payment completed successfully!');
-            fetchOrders(); // Refresh orders
-          }
-        }
-      } catch (error) {
-        console.error('Error polling payment status:', error);
-      }
-    }, 2000); // Poll every 2 seconds
-
-    // Stop polling after 5 minutes
-    setTimeout(() => {
-      clearInterval(pollInterval);
-      setRfidPaymentMode(prev => ({ ...prev, [orderId]: false }));
-    }, 300000);
-  };
 
   const navItems = [
     { name: "Home", link: "/", icon: <HomeIcon /> },
@@ -287,7 +213,7 @@ const OrdersPage = () => {
                   <div className="flex items-start justify-between mb-6">
                     <div>
                       <h3 className="font-bold text-gray-900 text-lg sm:text-xl mb-2">
-                        Order #{order.orderId || order._id.slice(-8)}
+                        Order #{order.orderIdentifier?.split('-')[1]?.slice(-6) || order._id.slice(-8)}
                       </h3>
                       <p className="text-sm text-yellow-600 font-medium">
                         {new Date(order.createdAt || '').toLocaleDateString('en-US', {
@@ -359,62 +285,6 @@ const OrdersPage = () => {
                     </div>
                   </div>
 
-                  {/* RFID Payment Section */}
-                  {orderType === 'active' && !order.paymentStatus && (
-                    <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full flex items-center justify-center">
-                            <CreditCard className="w-5 h-5 text-white" />
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-blue-800">RFID Payment</h4>
-                            <p className="text-sm text-blue-600">Pay instantly with your college ID card</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          {/* Device Status Indicator */}
-                          <div className="flex items-center gap-2">
-                            {rfidDeviceStatus[order.shopName]?.connected ? (
-                              <div className="flex items-center gap-1 text-green-600">
-                                <Wifi className="w-4 h-4" />
-                                <span className="text-xs font-medium">Device Online</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1 text-red-600">
-                                <WifiOff className="w-4 h-4" />
-                                <span className="text-xs font-medium">Device Offline</span>
-                              </div>
-                            )}
-                          </div>
-                          
-                          {/* RFID Payment Button */}
-                          <button
-                            onClick={() => toggleRfidPaymentMode(order._id, order.shopName || '', order.total || 0)}
-                            className={`px-4 py-2 rounded-full font-bold text-sm transition-all duration-200 ${
-                              rfidPaymentMode[order._id]
-                                ? 'bg-red-500 text-white hover:bg-red-600'
-                                : 'bg-gradient-to-r from-blue-400 to-indigo-500 text-white hover:from-blue-500 hover:to-indigo-600'
-                            }`}
-                          >
-                            {rfidPaymentMode[order._id] ? 'Cancel RFID Payment' : 'Pay with RFID'}
-                          </button>
-                        </div>
-                      </div>
-                      
-                      {rfidPaymentMode[order._id] && (
-                        <div className="mt-4 p-3 bg-blue-100 rounded-xl border border-blue-300">
-                          <div className="flex items-center gap-2 text-blue-800">
-                            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                            <span className="font-medium">RFID payment active - Scan your college ID card</span>
-                          </div>
-                          <p className="text-sm text-blue-600 mt-1">
-                            Amount: ₹{order.total} | Order: #{order.orderId || order._id.slice(-6)}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
 
                   {/* Order Footer */}
                   <div className="flex items-center justify-between pt-4 border-t-2 border-yellow-100">

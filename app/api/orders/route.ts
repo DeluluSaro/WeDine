@@ -3,13 +3,13 @@ import { client } from '@/sanity/lib/client';
 
 /**
  * GET /api/orders
- * Fetches a user's orders from the 'orderHistory' collection.
+ * Fetches a user's orders from the correct collections.
  * 
  * Query Params:
  * - userId: The ID of the user whose orders are to be fetched.
  * - type: 'active' | 'history'. Defaults to 'active'.
- *    - 'active': Fetches orders with statuses like 'ordered', 'preparing', etc.
- *    - 'history': Fetches completed or cancelled orders.
+ *    - 'active': Fetches from 'order' collection (current active orders)
+ *    - 'history': Fetches from 'orderHistory' collection (completed/archived orders)
  */
 export async function GET(req: NextRequest) {
   try {
@@ -21,25 +21,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
 
-    // Define the statuses that are considered "active"
-    const activeStatuses = ['ordered', 'order accepted', 'preparing', 'out for delivery'];
-
-    // All queries now correctly target the 'orderHistory' collection.
     let query;
-    const queryParams: { userId: string; activeStatuses?: string[] } = { userId };
+    let orders;
 
     if (type === 'history') {
-      // 'history' shows all orders that are NOT in an active state.
-      query = `*[_type == "orderHistory" && userId == $userId && !(status in $activeStatuses)] | order(createdAt desc)`
-      queryParams.activeStatuses = activeStatuses;
+      // 'history' shows all orders from the orderHistory collection
+      query = `*[_type == "orderHistory" && userId == $userId] | order(createdAt desc)`;
+      orders = await client.fetch(`${query}{...}`, { userId });
     } else { // 'active'
-      // 'active' shows all orders that ARE in an active state.
-      query = `*[_type == "orderHistory" && userId == $userId && status in $activeStatuses] | order(createdAt desc)`
-      queryParams.activeStatuses = activeStatuses;
+      // 'active' shows all non-archived orders from the order collection
+      query = `*[_type == "order" && userId == $userId && !isArchived] | order(createdAt desc)`;
+      orders = await client.fetch(`${query}{...}`, { userId });
     }
-
-    // Fetch all fields to ensure frontend has what it needs
-    const orders = await client.fetch(`${query}{...}`, queryParams);
     
     return NextResponse.json({ orders });
 
