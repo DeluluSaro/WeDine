@@ -21,6 +21,23 @@ interface WalletData {
 const WalletPage = () => {
   const { user } = useUser();
   const [walletData, setWalletData] = useState<WalletData | null>(null);
+
+  // Helper function to get user's display name
+  const getUserDisplayName = () => {
+    if (!user) return 'Loading...';
+    
+    if (user.fullName && user.fullName.trim()) {
+      return user.fullName.trim();
+    } else if (user.firstName && user.lastName) {
+      return `${user.firstName.trim()} ${user.lastName.trim()}`.trim();
+    } else if (user.firstName) {
+      return user.firstName.trim();
+    } else if (user.lastName) {
+      return user.lastName.trim();
+    } else {
+      return 'Name not available';
+    }
+  };
   const [loading, setLoading] = useState(true);
   const [addingMoney, setAddingMoney] = useState(false);
   const [amount, setAmount] = useState<number>(100);
@@ -33,7 +50,7 @@ const WalletPage = () => {
   const [isEditingRfid, setIsEditingRfid] = useState(false);
   const [currentRfidCard, setCurrentRfidCard] = useState<string>('');
   const [verificationLoading, setVerificationLoading] = useState(false);
-  const [studentName, setStudentName] = useState('');
+  const [studentName, setStudentName] = useState<string>('');
 
   const navItems = [
     { name: "Home", link: "/", icon: <HomeIcon /> },
@@ -49,6 +66,11 @@ const WalletPage = () => {
       checkPendingPayments();
       checkNfcSupport();
       fetchCurrentRfidCard();
+      // Set initial name from Clerk if available, but allow manual override
+      const clerkName = getUserDisplayName();
+      if (clerkName && clerkName !== 'Loading...' && clerkName !== 'Name not available') {
+        setStudentName(clerkName);
+      }
     }
   }, [user]);
 
@@ -236,7 +258,7 @@ const WalletPage = () => {
     }
 
     if (!studentName.trim()) {
-      toast.error('Please enter your student name');
+      toast.error('Please enter your full name');
       return;
     }
 
@@ -285,6 +307,11 @@ const WalletPage = () => {
       return;
     }
 
+    if (!studentName.trim()) {
+      toast.error('Please enter your full name');
+      return;
+    }
+
     try {
       const response = await fetch('/api/payment/rfid/improved', {
         method: 'PATCH',
@@ -294,7 +321,7 @@ const WalletPage = () => {
         body: JSON.stringify({
           rfidCardId: rfidCardId,
           userEmail: user.emailAddresses[0].emailAddress,
-          studentName: user.fullName || '',
+          studentName: studentName.trim(),
           adminKey: process.env.NEXT_PUBLIC_ADMIN_RFID_KEY || 'admin_key'
         }),
       });
@@ -305,6 +332,7 @@ const WalletPage = () => {
         toast.success('RFID card updated successfully!');
         setIsEditingRfid(false);
         setRfidCardId('');
+        setStudentName('');
         setCurrentRfidCard(rfidCardId);
         fetchCurrentRfidCard(); // Refresh current RFID card
       } else {
@@ -385,7 +413,7 @@ const WalletPage = () => {
             }
           },
           prefill: {
-            name: user.fullName || '',
+            name: getUserDisplayName(),
             email: user.emailAddresses[0].emailAddress,
             contact: user.phoneNumbers?.[0]?.phoneNumber || ''
           },
@@ -636,16 +664,37 @@ const WalletPage = () => {
                 {/* Student Name Input */}
                 <div className="p-4 border border-blue-200 rounded-xl bg-blue-50">
                   <h3 className="font-semibold text-blue-800 mb-3">Student Information</h3>
-                  <input
-                    type="text"
-                    placeholder="Enter your full name as per college records"
-                    value={studentName}
-                    onChange={(e) => setStudentName(e.target.value)}
-                    className="w-full p-3 border border-blue-300 rounded-lg focus:outline-none focus:border-blue-500"
-                    disabled={verificationLoading}
-                  />
-                  <p className="text-sm text-blue-700 mt-2">
-                    This name will be associated with your RFID card for verification
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Full Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Enter your full name (as it appears on your ID card)"
+                        value={studentName}
+                        onChange={(e) => setStudentName(e.target.value)}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                        required
+                      />
+                    </div>
+                    {getUserDisplayName() && getUserDisplayName() !== 'Loading...' && getUserDisplayName() !== 'Name not available' && (
+                      <div className="p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p className="text-xs text-yellow-700">
+                          💡 Suggested name from your account: <strong>{getUserDisplayName()}</strong>
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setStudentName(getUserDisplayName())}
+                          className="text-xs text-blue-600 hover:text-blue-800 underline mt-1"
+                        >
+                          Use this name instead
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-sm text-blue-700 mt-3">
+                    This name will be associated with your RFID card for verification at shops
                   </p>
                 </div>
 
@@ -775,7 +824,7 @@ const WalletPage = () => {
                       ✅ RFID Card ID: <strong>{rfidCardId}</strong>
                     </p>
                     <p className="text-sm text-green-800 font-medium">
-                      👤 Student Name: <strong>{studentName}</strong>
+                      👤 Student Name: <strong>{studentName || 'Not entered'}</strong>
                     </p>
                   </div>
                   
@@ -851,7 +900,6 @@ const WalletPage = () => {
                         setShowRfidSetup(false);
                         setIsEditingRfid(true);
                         setRfidCardId(currentRfidCard);
-                        setStudentName(''); // Will be filled from backend
                       }}
                       className="flex-1 border-orange-300 text-orange-700 hover:bg-orange-50"
                     >

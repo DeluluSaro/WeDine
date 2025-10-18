@@ -18,6 +18,7 @@ interface OrderItem {
 interface Order {
   _id: string;
   orderIdentifier?: string;
+  shortOrderId?: string;
   createdAt?: string;
   status?: string;
   foodName?: string;
@@ -210,24 +211,48 @@ const OrdersPage = () => {
                   className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 sm:p-8 hover:shadow-3xl hover:scale-105 transition-all duration-500 border-2 border-yellow-100 hover:border-yellow-200"
                 >
                   {/* Order Header */}
-                  <div className="flex items-start justify-between mb-6">
-                    <div>
-                      <h3 className="font-bold text-gray-900 text-lg sm:text-xl mb-2">
-                        Order #{order.orderIdentifier?.split('-')[1]?.slice(-6) || order._id.slice(-8)}
-                      </h3>
-                      <p className="text-sm text-yellow-600 font-medium">
-                        {new Date(order.createdAt || '').toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })}
-                      </p>
+                  <div className="mb-6">
+                    {/* Order ID Section - Clean and Professional */}
+                    <div className="bg-gradient-to-r from-slate-50 to-gray-50 border border-slate-200 rounded-2xl p-4 mb-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="bg-slate-600 text-white rounded-xl p-2">
+                            <Package className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Order ID</p>
+                            <p className="text-2xl font-bold text-slate-800 tracking-tight">
+                              {order.shortOrderId || order.orderIdentifier?.split('-')[1]?.slice(-6) || order._id.slice(-8)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-slate-500 font-medium">Order Date</p>
+                          <p className="text-sm font-semibold text-slate-700">
+                            {new Date(order.createdAt || '').toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      {getStatusIcon(order.status || '')}
-                      <span className={`text-sm font-bold px-4 py-2 rounded-full ${getStatusColor(order.status || '')}`}>
-                        {order.status || 'Pending'}
-                      </span>
+                    
+                    {/* Status Section */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {getStatusIcon(order.status || '')}
+                        <span className={`text-sm font-bold px-4 py-2 rounded-full ${getStatusColor(order.status || '')}`}>
+                          {order.status || 'Pending'}
+                        </span>
+                      </div>
+                      <div className="text-sm text-slate-600">
+                        <span className="font-medium">Full ID: </span>
+                        <span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded">
+                          {order.orderIdentifier || order._id}
+                        </span>
+                      </div>
                     </div>
                   </div>
 

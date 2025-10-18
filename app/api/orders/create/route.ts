@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { writeClient } from '@/sanity/lib/client';
+import { generateOrderId } from '@/lib/orderIdGenerator';
 
 /**
  * POST /api/orders/create
@@ -21,6 +22,32 @@ export async function POST(req: NextRequest) {
       userDetails
     } = body;
 
+    // Get user's RFID card ID from their wallet or RFID card record
+    let rfidCardId = null;
+    try {
+      // First try to get from wallet
+      const wallet = await writeClient.fetch(
+        `*[_type == "wallet" && userEmail == $userEmail][0] { rfidCardId }`,
+        { userEmail }
+      );
+      
+      if (wallet?.rfidCardId) {
+        rfidCardId = wallet.rfidCardId;
+      } else {
+        // Try to get from RFID card collection
+        const rfidCard = await writeClient.fetch(
+          `*[_type == "rfidCard" && userEmail == $userEmail && isActive == true][0] { cardId }`,
+          { userEmail }
+        );
+        
+        if (rfidCard?.cardId) {
+          rfidCardId = rfidCard.cardId;
+        }
+      }
+    } catch (error) {
+      console.log('Could not fetch RFID card ID for user:', userEmail);
+    }
+
     // Validate required fields
     if (!userId || !userEmail || !items || !Array.isArray(items) || items.length === 0 || !total) {
       return NextResponse.json({ 
@@ -37,10 +64,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Generate unique order identifier
+    // Generate unique 5-character order ID for easy memorization
+    const orderId = generateOrderId();
     const timestamp = Date.now();
-    const randomSuffix = Math.random().toString(36).substring(2, 8);
-    const orderIdentifier = `ORD-${timestamp}-${randomSuffix}`;
+    const orderIdentifier = `${orderId}-${timestamp}`;
 
     // Calculate expiration time (24 hours from now)
     const now = new Date();
@@ -50,7 +77,9 @@ export async function POST(req: NextRequest) {
       _type: 'order',
       userId,
       userEmail,
+      rfidCardId, // Include RFID card ID if available
       orderIdentifier,
+      shortOrderId: orderId,
       items: items.map(item => ({
         foodName: item.foodName,
         quantity: Number(item.quantity),
@@ -80,7 +109,8 @@ export async function POST(req: NextRequest) {
       success: true, 
       order,
       orderId: order._id,
-      orderIdentifier
+      orderIdentifier,
+      shortOrderId: orderId // Return the 5-character ID for easy display
     });
 
   } catch (error: unknown) {

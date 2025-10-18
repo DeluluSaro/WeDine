@@ -26,9 +26,11 @@ interface Order {
   _id: string;
   orderId?: string;
   orderIdentifier?: string;
+  shortOrderId?: string;
   userId: string;
   userEmail: string;
   userPhone?: string;
+  rfidCardId?: string;
   items: OrderItem[];
   total: number;
   paymentMethod: 'cod' | 'online';
@@ -38,6 +40,13 @@ interface Order {
   requiredRfidCardId?: string;
   createdAt: string;
   updatedAt: string;
+  userDetails?: {
+    name?: string;
+    phone?: string;
+    address?: string;
+  };
+  deliveredAt?: string;
+  adminNotes?: string;
 }
 
 interface Shop {
@@ -66,18 +75,33 @@ export default function AdminPage() {
   const [updatingOrder, setUpdatingOrder] = useState<string | null>(null);
   const [statusUpdates, setStatusUpdates] = useState<{ [key: string]: string }>({});
   const [updateQueue, setUpdateQueue] = useState<string[]>([]);
-  const [adminSession, setAdminSession] = useState<any>(null);
+  const [adminSession, setAdminSession] = useState<{ shopName: string; username: string } | null>(null);
   const [rfidMode, setRfidMode] = useState(false);
   const [rfidDeviceStatus, setRfidDeviceStatus] = useState<'offline' | 'online' | 'unknown'>('unknown');
   const [rfidInput, setRfidInput] = useState('');
   const [selectedOrderForRfid, setSelectedOrderForRfid] = useState<Order | null>(null);
   const [isListeningToRfid, setIsListeningToRfid] = useState(false);
-  const [latestRfidCard, setLatestRfidCard] = useState<any>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  const [lastScannedCardId, setLastScannedCardId] = useState<string>('');
   const [connectionRetries, setConnectionRetries] = useState(0);
   const [maxRetries] = useState(5);
   const [isManualScanning, setIsManualScanning] = useState(false);
+  const [showOrderIdPopup, setShowOrderIdPopup] = useState(false);
+  const [popupOrderId, setPopupOrderId] = useState<string>('');
+  const [popupTimer, setPopupTimer] = useState<NodeJS.Timeout | null>(null);
+  const [verifyOrderMode, setVerifyOrderMode] = useState(false);
+  const [currentFirebaseRfid, setCurrentFirebaseRfid] = useState<{ 
+    cardId: string; 
+    timestamp: string; 
+    shopName: string;
+    studentName?: string;
+    userEmail?: string;
+    deviceId?: string;
+    isVerified?: boolean;
+  } | null>(null);
+  const [rfidOrders, setRfidOrders] = useState<Order[]>([]);
+  const [isLoadingRfidOrders, setIsLoadingRfidOrders] = useState(false);
+  const [manualOrderIdInput, setManualOrderIdInput] = useState<string>('');
+  const [verifiedOrder, setVerifiedOrder] = useState<Order | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -91,6 +115,24 @@ export default function AdminPage() {
       fetchLatestRfidData();
     }
   }, [adminSession?.shopName]);
+
+  // Continuous RFID scanning when RFID mode is enabled
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout | null = null;
+
+    if (rfidMode && adminSession?.shopName) {
+      // Start continuous scanning every 2 seconds
+      intervalId = setInterval(() => {
+        fetchLatestRfidData();
+      }, 2000);
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [rfidMode, adminSession?.shopName]);
 
   useEffect(() => {
     // Load admin session
@@ -217,7 +259,7 @@ export default function AdminPage() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
       
-      const response = await fetch(`/api/rfid/data?shopName=${encodeURIComponent(adminSession.shopName)}`, {
+      const response = await fetch(`/api/rfid/current?shopName=${encodeURIComponent(adminSession.shopName)}`, {
         signal: controller.signal,
         headers: {
           'Cache-Control': 'no-cache',
@@ -230,27 +272,27 @@ export default function AdminPage() {
       if (response.ok) {
         const data = await response.json();
         
-        // Use the latestScan directly from the API
-        if (data.latestScan && data.latestScan.cardId) {
-          const currentCardId = data.latestScan.cardId;
+        // Check if we have RFID data from Firebase
+        if (data.success && data.rfidData && data.rfidData.cardId) {
+          const currentCardId = data.rfidData.cardId;
           
           // Validate card ID format (should be alphanumeric and reasonable length)
           if (currentCardId.length >= 4 && currentCardId.length <= 20 && /^[A-F0-9]+$/i.test(currentCardId)) {
-            setLatestRfidCard(data.latestScan);
+            console.log(`RFID card detected from Firebase: ${currentCardId}`);
+            setRfidInput(currentCardId);
+            
             // If manual scan, also update the input field
             if (isManual) {
-              setRfidInput(currentCardId);
               console.log(`Manual scan - RFID card: ${currentCardId}`);
             }
           } else {
-            console.warn(`Invalid RFID card format in manual scan: ${currentCardId}`);
-            setLatestRfidCard(null);
+            console.warn(`Invalid RFID card format: ${currentCardId}`);
             if (isManual) {
               setRfidInput('');
             }
           }
         } else {
-          setLatestRfidCard(null);
+          console.log('No RFID data found in Firebase');
           if (isManual) {
             setRfidInput('');
           }
@@ -367,6 +409,10 @@ export default function AdminPage() {
     return order.orderIdentifier || order.orderId || order._id;
   };
 
+  const getShortOrderId = (order: Order) => {
+    return order.shortOrderId || '';
+  };
+
   const parseEmailToName = (email: string) => {
     if (!email) return '';
     const atIndex = email.indexOf('@');
@@ -382,15 +428,6 @@ export default function AdminPage() {
     return name;
   };
 
-  const checkRfidDeviceStatus = async () => {
-    try {
-      // This would check if the RFID device is online
-      // For now, we'll simulate it
-      setRfidDeviceStatus('online');
-    } catch (error) {
-      setRfidDeviceStatus('offline');
-    }
-  };
 
   const toggleRfidMode = () => {
     setRfidMode(!rfidMode);
@@ -437,12 +474,14 @@ export default function AdminPage() {
           successMessage += `\n⚠️ Shop owner payment details not configured`;
         }
         
+        // Show order ID popup for 15 seconds
+        if (order.shortOrderId) {
+          showOrderIdPopupFor15Seconds(order.shortOrderId);
+        }
+        
         toast.success(successMessage);
-        // setCurrentRfidOrder(null); // Removed unused variable
         setRfidInput(''); // Clear RFID input
-        setLatestRfidCard(null); // Clear latest card
         setSelectedOrderForRfid(null); // Clear selected order
-        setLastScannedCardId(''); // Reset last scanned card
         fetchOrders(true); // Refresh orders
       } else {
         toast.error(result.message || 'Payment failed');
@@ -462,25 +501,6 @@ export default function AdminPage() {
     }
   };
 
-  const fetchRfidFromDevice = async () => {
-    try {
-      // Check if RFID device is online
-      if (rfidDeviceStatus !== 'online') {
-        toast.error('RFID device is offline. Please check connection.');
-        return;
-      }
-
-      // In a real implementation, this would listen for RFID events from the device
-      // For now, we'll simulate it by showing a prompt
-      const rfidCardId = prompt('Enter RFID Card ID from device (or scan with RFID reader):');
-      if (rfidCardId && rfidCardId.trim()) {
-        setRfidInput(rfidCardId.trim());
-      }
-    } catch (error) {
-      console.error('Error fetching RFID:', error);
-      toast.error('Failed to fetch RFID card ID');
-    }
-  };
 
   const startListeningToRfid = async () => {
     // Manual scanning only - no automatic polling
@@ -489,22 +509,184 @@ export default function AdminPage() {
   };
 
   const stopListeningToRfid = () => {
-    if ((window as any).rfidInterval) {
-      clearInterval((window as any).rfidInterval);
-      (window as any).rfidInterval = null;
+    if ((window as unknown as { rfidInterval?: NodeJS.Timeout }).rfidInterval) {
+      clearInterval((window as unknown as { rfidInterval: NodeJS.Timeout }).rfidInterval);
+      (window as unknown as { rfidInterval: NodeJS.Timeout | null }).rfidInterval = null;
     }
     setIsListeningToRfid(false);
     setRfidDeviceStatus('offline');
   };
 
+  // Show order ID popup for 15 seconds
+  const showOrderIdPopupFor15Seconds = (orderId: string) => {
+    setPopupOrderId(orderId);
+    setShowOrderIdPopup(true);
+    
+    // Clear any existing timer
+    if (popupTimer) {
+      clearTimeout(popupTimer);
+    }
+    
+    // Set timer to hide popup after 15 seconds
+    const timer = setTimeout(() => {
+      setShowOrderIdPopup(false);
+      setPopupOrderId('');
+      setPopupTimer(null);
+    }, 15000);
+    
+    setPopupTimer(timer);
+  };
+
+  // Close order ID popup manually
+  const closeOrderIdPopup = () => {
+    setShowOrderIdPopup(false);
+    setPopupOrderId('');
+    
+    // Clear the timer if it exists
+    if (popupTimer) {
+      clearTimeout(popupTimer);
+      setPopupTimer(null);
+    }
+  };
+
+  // Toggle verify order mode
+  const toggleVerifyOrderMode = () => {
+    setVerifyOrderMode(!verifyOrderMode);
+    if (verifyOrderMode) {
+      // Clear verification state when disabling
+      setCurrentFirebaseRfid(null);
+      setRfidOrders([]);
+    }
+  };
+
+  // Get current RFID from Firebase Realtime Database
+  const getCurrentRfidFromFirebase = async () => {
+    if (!adminSession?.shopName) {
+      toast.error('Shop name not available');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/rfid/current?shopName=${encodeURIComponent(adminSession.shopName)}`);
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        setCurrentFirebaseRfid(result.rfidData);
+      } else {
+        setCurrentFirebaseRfid(null);
+        toast.error(result.error || 'Failed to get RFID from Firebase');
+      }
+    } catch (error) {
+      console.error('Error getting RFID from Firebase:', error);
+      setCurrentFirebaseRfid(null);
+      toast.error('Failed to get RFID from Firebase');
+    }
+  };
+
+  // Fetch orders by RFID card
+  const fetchOrdersByRfid = async (rfidCardId: string) => {
+    if (!rfidCardId.trim()) {
+      toast.error('Please enter RFID card ID');
+      return;
+    }
+
+    setIsLoadingRfidOrders(true);
+    try {
+      const response = await fetch(`/api/orders/by-rfid?rfidCardId=${encodeURIComponent(rfidCardId.trim())}`);
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        setRfidOrders(result.orders);
+      } else {
+        setRfidOrders([]);
+        toast.error(result.error || 'No orders found for this RFID card');
+      }
+    } catch (error) {
+      console.error('Error fetching RFID orders:', error);
+      setRfidOrders([]);
+      toast.error('Failed to fetch orders for RFID card');
+    } finally {
+      setIsLoadingRfidOrders(false);
+    }
+  };
+
+  // Handle order action based on payment status
+  const handleOrderAction = async (order: Order) => {
+    if (order.paymentMethod === 'cod' || order.status === 'pending') {
+      // Unpaid order - transfer to RFID payment
+      setSelectedOrderForRfid(order);
+      setRfidInput(currentFirebaseRfid?.cardId || '');
+      setRfidMode(true);
+      setVerifyOrderMode(false);
+      toast.info('Order transferred to RFID payment mode');
+    } else if (order.status === 'paid' || order.status === 'completed') {
+      // Paid order - show order ID popup
+      if (order.shortOrderId) {
+        showOrderIdPopupFor15Seconds(order.shortOrderId);
+      } else {
+        toast.error('Order ID not found for this order');
+      }
+    } else {
+      toast.info(`Order status: ${order.status}`);
+    }
+  };
+
+  // Verify order by manual order ID input
+  const verifyOrderByManualId = async () => {
+    if (!manualOrderIdInput.trim()) {
+      toast.error('Please enter an order ID');
+      return;
+    }
+
+    const orderId = manualOrderIdInput.trim().toUpperCase();
+    
+    try {
+      const response = await fetch('/api/orders/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          orderId: orderId
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        setVerifiedOrder(result.order);
+        toast.success(`Order verified! Found order for ${result.order.userDetails?.name || 'Unknown User'}`);
+      } else {
+        setVerifiedOrder(null);
+        toast.error(result.error || 'Order not found. Please check the order ID.');
+      }
+    } catch (error) {
+      console.error('Order verification error:', error);
+      setVerifiedOrder(null);
+      toast.error('Failed to verify order. Please try again.');
+    }
+  };
+
+  // Clear manual verification
+  const clearManualVerification = () => {
+    setManualOrderIdInput('');
+    setVerifiedOrder(null);
+  };
+
+
+
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if ((window as any).rfidInterval) {
-        clearInterval((window as any).rfidInterval);
+      if ((window as unknown as { rfidInterval?: NodeJS.Timeout }).rfidInterval) {
+        clearInterval((window as unknown as { rfidInterval: NodeJS.Timeout }).rfidInterval);
+      }
+      if (popupTimer) {
+        clearTimeout(popupTimer);
       }
     };
-  }, []);
+  }, [popupTimer]);
 
   const handleDirectRfidPayment = async () => {
     // Prevent multiple clicks
@@ -547,12 +729,14 @@ export default function AdminPage() {
     // Filter by status
     const statusMatch = selectedStatus === 'all' || order.status === selectedStatus;
     
-    // Filter by search term
+    // Filter by search term - prioritize 5-character order ID
     const searchMatch = searchTerm === '' || 
+      getShortOrderId(order).toLowerCase().includes(searchTerm.toLowerCase()) ||
       getOrderIdentifier(order).toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.userEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.userId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (order.userPhone && order.userPhone.toLowerCase().includes(searchTerm.toLowerCase()));
+      (order.userPhone && order.userPhone.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (order.userDetails?.name && order.userDetails.name.toLowerCase().includes(searchTerm.toLowerCase()));
     
     return shopMatch && statusMatch && searchMatch;
   });
@@ -581,7 +765,7 @@ export default function AdminPage() {
     }
   };
 
-  const getPaymentStatusColor = (paymentStatus: boolean, paymentMethod: string) => {
+  const getPaymentStatusColor = (paymentStatus: boolean) => {
     return paymentStatus ? 'bg-green-100 text-green-800 border-green-300' : 'bg-red-200 text-red-900 border-red-400 font-semibold';
   };
 
@@ -595,10 +779,6 @@ export default function AdminPage() {
     });
   };
 
-  const getOrderShops = (order: Order) => {
-    const shopNames = [...new Set(order.items.map(item => item.shopName))];
-    return shopNames.join(', ');
-  };
 
   const getOrderItemsByShop = (order: Order) => {
     const itemsByShop: { [key: string]: OrderItem[] } = {};
@@ -658,6 +838,8 @@ export default function AdminPage() {
               Logout
             </Button>
           </div>
+        </div>
+
 
           {/* Controls */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -714,13 +896,27 @@ export default function AdminPage() {
 
             <div className="space-y-2">
               <Label htmlFor="search" className="text-sm font-medium">Search Orders</Label>
-              <Input
-                id="search"
-                placeholder="Order ID, Email, Mobile..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full"
-              />
+              <div className="relative">
+                <Input
+                  id="search"
+                  placeholder="5-char Order ID (ABC12), Email, Mobile, Name..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full"
+                />
+                {searchTerm && searchTerm.length === 5 && /^[A-Z0-9]{5}$/i.test(searchTerm) && (
+                  <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                    <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">
+                      Order ID
+                    </span>
+                  </div>
+                )}
+              </div>
+              {searchTerm && (
+                <div className="text-xs text-gray-500">
+                  Searching in: Order IDs, Customer names, emails, and phone numbers
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -779,6 +975,20 @@ export default function AdminPage() {
               {rfidMode ? 'RFID Auto-Scan ON' : 'Enable RFID Auto-Scan'}
             </Button>
 
+            {/* Verify Order Button */}
+            <Button
+              onClick={toggleVerifyOrderMode}
+              variant={verifyOrderMode ? "default" : "outline"}
+              className={`flex items-center gap-2 ${
+                verifyOrderMode 
+                  ? 'bg-purple-600 hover:bg-purple-700' 
+                  : 'border-purple-600 text-purple-600 hover:bg-purple-50'
+              }`}
+            >
+              <Eye className="h-4 w-4" />
+              {verifyOrderMode ? 'Verify Order ON' : 'Verify Order'}
+            </Button>
+
             {/* RFID Finder Link */}
             <Button
               onClick={() => {
@@ -798,6 +1008,7 @@ export default function AdminPage() {
                 </span>
               )}
             </Button>
+
 
             {/* RFID Device Status */}
             {rfidMode && (
@@ -856,22 +1067,44 @@ export default function AdminPage() {
                   <div>
                     <Label htmlFor="rfid-input" className="text-sm font-medium text-gray-700 mb-2 block">
                       Scanned RFID Card ID
+                      {rfidMode && (
+                        <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></div>
+                          Auto-Scanning
+                        </span>
+                      )}
                     </Label>
                     <Input
                       id="rfid-input"
                       type="text"
                       value={rfidInput}
                       readOnly
-                      placeholder="RFID card will appear here automatically when scanned..."
-                      className="w-full font-mono text-lg p-3 bg-white border-2 border-gray-300 rounded-lg"
+                      placeholder={rfidMode ? "Scanning for RFID cards..." : "RFID card will appear here automatically when scanned..."}
+                      className={`w-full font-mono text-lg p-3 border-2 rounded-lg ${
+                        rfidInput 
+                          ? 'bg-green-50 border-green-300 text-green-800' 
+                          : rfidMode 
+                            ? 'bg-blue-50 border-blue-300 text-blue-600' 
+                            : 'bg-white border-gray-300'
+                      }`}
                     />
                     {rfidInput && (
-                      <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
                         <p className="text-sm text-green-600 font-medium">
                           ✅ Valid RFID card detected and ready for payment
                         </p>
                         <p className="text-xs text-green-500 mt-1">
                           Card ID: {rfidInput}
+                        </p>
+                      </div>
+                    )}
+                    {rfidMode && !rfidInput && (
+                      <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-600 font-medium">
+                          🔍 Scanning for RFID cards...
+                        </p>
+                        <p className="text-xs text-blue-500 mt-1">
+                          Place RFID card near the reader
                         </p>
                       </div>
                     )}
@@ -882,10 +1115,8 @@ export default function AdminPage() {
                     <Button
                       onClick={() => {
                         setRfidInput('');
-                        setLatestRfidCard(null);
                         setSelectedOrderForRfid(null);
                         setIsProcessingPayment(false);
-                        setLastScannedCardId(''); // Reset last scanned card
                         setConnectionRetries(0); // Reset connection retries
                         setIsManualScanning(false); // Reset manual scanning state
                         stopListeningToRfid();
@@ -900,7 +1131,6 @@ export default function AdminPage() {
                     <Button
                       onClick={() => {
                         fetchLatestRfidData(0, true); // Manual scan
-                        setLastScannedCardId(''); // Reset to allow same card detection
                       }}
                       variant="outline"
                       className="flex-1 border-blue-600 text-blue-600 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -909,6 +1139,7 @@ export default function AdminPage() {
                       <RefreshCw className={`h-4 w-4 mr-2 ${isManualScanning ? 'animate-spin' : ''}`} />
                       {isManualScanning ? 'Scanning...' : 'Scan'}
                     </Button>
+                    
                     
                     {connectionRetries >= maxRetries && (
                       <Button
@@ -986,8 +1217,272 @@ export default function AdminPage() {
                 </div>
               </div>
             )}
+
+        {/* Verify Order Section */}
+        {verifyOrderMode && (
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mt-4">
+            <h3 className="text-lg font-semibold text-purple-800 mb-4 flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              Order Verification
+            </h3>
+            
+            <div className="space-y-4">
+              {/* Manual Order ID Verification */}
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-800 mb-3">Manual Order ID Verification</h4>
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    value={manualOrderIdInput}
+                    onChange={(e) => setManualOrderIdInput(e.target.value.toUpperCase())}
+                    placeholder="Enter 5-character order ID..."
+                    className="flex-1 font-mono text-lg p-3 bg-white border-2 border-gray-300 rounded-lg"
+                    maxLength={5}
+                  />
+                  <Button
+                    onClick={verifyOrderByManualId}
+                    disabled={!manualOrderIdInput.trim()}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-6"
+                  >
+                    Verify Order
+                  </Button>
+                  <Button
+                    onClick={clearManualVerification}
+                    variant="outline"
+                    className="border-gray-300"
+                  >
+                    Clear
+                  </Button>
+                </div>
+              </div>
+
+              {/* Manual Verification Result */}
+              {verifiedOrder && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <h4 className="font-semibold text-green-800">Order Verified Successfully!</h4>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-green-700 font-medium">Order Details:</p>
+                      <div className="bg-white p-3 rounded border mt-2">
+                        <p className="font-mono text-lg font-bold text-green-800 mb-2">
+                          Order ID: {verifiedOrder.shortOrderId}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          <strong>Customer:</strong> {verifiedOrder.userDetails?.name || 'Unknown'}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          <strong>Email:</strong> {verifiedOrder.userEmail}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          <strong>Phone:</strong> {verifiedOrder.userDetails?.phone || 'Not provided'}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          <strong>Total:</strong> ₹{verifiedOrder.total}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          <strong>Payment:</strong> {verifiedOrder.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online'}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          <strong>Status:</strong> {verifiedOrder.status}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <p className="text-sm text-green-700 font-medium">Order Items:</p>
+                      <div className="bg-white p-3 rounded border mt-2 max-h-40 overflow-y-auto">
+                        {verifiedOrder.items.map((item, index) => (
+                          <div key={index} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-b-0">
+                            <div>
+                              <p className="text-sm font-medium">{item.foodName}</p>
+                              <p className="text-xs text-gray-500">{item.shopName}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-medium">Qty: {item.quantity}</p>
+                              <p className="text-sm text-green-600">₹{item.price}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="mt-4 pt-4 border-t border-green-200">
+                    <div className="flex gap-2">
+                      {verifiedOrder.status === 'paid' || verifiedOrder.status === 'completed' ? (
+                        <Button
+                          onClick={() => {
+                            if (verifiedOrder.shortOrderId) {
+                              showOrderIdPopupFor15Seconds(verifiedOrder.shortOrderId);
+                            }
+                          }}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          Show Order ID Popup
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={() => {
+                            setSelectedOrderForRfid(verifiedOrder);
+                            setRfidInput(currentFirebaseRfid?.cardId || '');
+                            setRfidMode(true);
+                            setVerifyOrderMode(false);
+                            toast.info('Order transferred to RFID payment mode');
+                          }}
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          Pay with RFID
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Get Current RFID Button */}
+              <div className="flex gap-2">
+                <Button
+                  onClick={getCurrentRfidFromFirebase}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6"
+                >
+                  <Wifi className="w-4 h-4 mr-2" />
+                  Get Current RFID
+                </Button>
+                <Button
+                  onClick={() => {
+                    setCurrentFirebaseRfid(null);
+                    setRfidOrders([]);
+                  }}
+                  variant="outline"
+                  className="border-gray-300"
+                >
+                  Clear
+                </Button>
+              </div>
+
+              {/* Current Firebase RFID Info */}
+              {currentFirebaseRfid && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                  <h4 className="font-semibold text-orange-800 mb-2 flex items-center gap-2">
+                    <Wifi className="h-4 w-4" />
+                    Current Firebase RFID
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="font-medium">Card ID:</span> {currentFirebaseRfid.cardId || 'N/A'}
+                    </div>
+                    <div>
+                      <span className="font-medium">Student:</span> {currentFirebaseRfid.studentName || 'N/A'}
+                    </div>
+                    <div>
+                      <span className="font-medium">Email:</span> {currentFirebaseRfid.userEmail || 'N/A'}
+                    </div>
+                    <div>
+                      <span className="font-medium">Shop:</span> {currentFirebaseRfid.shopName || 'N/A'}
+                    </div>
+                    <div>
+                      <span className="font-medium">Device:</span> {currentFirebaseRfid.deviceId || 'N/A'}
+                    </div>
+                    <div>
+                      <span className="font-medium">Verified:</span> 
+                      <span className={`ml-1 ${currentFirebaseRfid.isVerified ? 'text-green-600' : 'text-red-600'}`}>
+                        {currentFirebaseRfid.isVerified ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="font-medium">Timestamp:</span> 
+                      <span className="ml-1 text-gray-600">
+                        {currentFirebaseRfid.timestamp ? new Date(currentFirebaseRfid.timestamp).toLocaleString() : 'N/A'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Find Orders Button */}
+                  {currentFirebaseRfid.cardId && (
+                    <div className="mt-3">
+                      <Button
+                        onClick={() => fetchOrdersByRfid(currentFirebaseRfid.cardId)}
+                        disabled={isLoadingRfidOrders}
+                        className="bg-purple-600 hover:bg-purple-700 text-white w-full"
+                      >
+                        {isLoadingRfidOrders ? 'Loading...' : 'Find Orders for this RFID'}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Orders List for RFID Card */}
+              {rfidOrders.length > 0 && (
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-gray-800 mb-4">
+                    Orders for RFID Card ({rfidOrders.length} total)
+                  </h4>
+                  
+                  <div className="space-y-3 max-h-60 overflow-y-auto">
+                    {rfidOrders.map((order) => (
+                      <div 
+                        key={order._id} 
+                        className="border rounded-lg p-3 transition-colors hover:border-gray-300"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="font-mono text-lg font-bold text-purple-800">
+                                {order.shortOrderId}
+                              </span>
+                              <span className="text-sm text-gray-600">
+                                Order #{order.orderIdentifier?.split('-')[1]?.slice(-6) || order._id.slice(-8)}
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-600 mb-1">
+                              ₹{order.total} • {order.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment'}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {new Date(order.createdAt).toLocaleDateString()} • {order.items.length} item(s)
+                            </div>
+                          </div>
+                          
+                          <div className="flex flex-col items-end gap-2">
+                            <div className={`px-2 py-1 rounded text-xs font-medium ${
+                              order.status === 'paid' || order.status === 'completed' 
+                                ? 'bg-green-100 text-green-800' 
+                                : order.status === 'pending' || order.paymentMethod === 'cod'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {order.status === 'paid' || order.status === 'completed' ? 'PAID' : 
+                               order.status === 'pending' || order.paymentMethod === 'cod' ? 'UNPAID' : 
+                               order.status.toUpperCase()}
+                            </div>
+                            
+                            <Button
+                              onClick={() => handleOrderAction(order)}
+                              size="sm"
+                              className={`${
+                                order.status === 'paid' || order.status === 'completed'
+                                  ? 'bg-green-600 hover:bg-green-700 text-white'
+                                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+                              }`}
+                            >
+                              {order.status === 'paid' || order.status === 'completed' ? 'Show Order ID' : 'Pay with RFID'}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
+          </div>
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -1059,9 +1554,22 @@ export default function AdminPage() {
                     </tr>
                   ) : (
                     filteredOrders.map((order) => (
-                    <tr key={order._id} className={`hover:bg-gray-50 ${updateQueue.includes(order._id) ? 'bg-blue-50' : ''}`}>
+                    <tr 
+                      key={order._id} 
+                      className={`hover:bg-gray-50 ${updateQueue.includes(order._id) ? 'bg-blue-50' : ''}`}
+                      data-order-id={order.shortOrderId}
+                    >
                       <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {getOrderIdentifier(order)}
+                        <div className="flex flex-col">
+                          {order.shortOrderId && (
+                            <span className="font-mono text-lg font-bold text-purple-800">
+                              {order.shortOrderId}
+                            </span>
+                          )}
+                          <span className="text-xs text-gray-500">
+                            {getOrderIdentifier(order)}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div>
@@ -1107,7 +1615,7 @@ export default function AdminPage() {
                           </Badge>
                           <Badge 
                             variant="outline" 
-                            className={getPaymentStatusColor(order.paymentStatus, order.paymentMethod)}
+                            className={getPaymentStatusColor(order.paymentStatus)}
                           >
                             {order.paymentStatus ? 'Paid' : 'Pending'}
                           </Badge>
@@ -1134,7 +1642,7 @@ export default function AdminPage() {
                                 variant="outline" 
                                 size="sm" 
                                 className="flex items-center gap-1"
-                                disabled={isShopFilterLocked && adminSession?.shopName && !order.items.some(item => item.shopName === adminSession.shopName)}
+                                disabled={Boolean(isShopFilterLocked && adminSession?.shopName && !order.items.some(item => item.shopName === adminSession.shopName))}
                               >
                                 <Eye className="h-3 w-3" />
                                 <span className="hidden sm:inline">View</span>
@@ -1185,7 +1693,7 @@ export default function AdminPage() {
                                     <Label className="text-sm font-medium">Payment Status</Label>
                                     <Badge 
                                       variant="outline" 
-                                      className={getPaymentStatusColor(order.paymentStatus, order.paymentMethod)}
+                                      className={getPaymentStatusColor(order.paymentStatus)}
                                     >
                                       {order.paymentStatus ? 'Paid' : 'Pending'}
                                     </Badge>
@@ -1241,7 +1749,7 @@ export default function AdminPage() {
                                   setStatusUpdates(prev => ({ ...prev, [order._id]: value }));
                                 }
                               }}
-                              disabled={isShopFilterLocked && adminSession?.shopName && !order.items.some(item => item.shopName === adminSession.shopName)}
+                              disabled={Boolean(isShopFilterLocked && adminSession?.shopName && !order.items.some(item => item.shopName === adminSession.shopName))}
                             >
                               <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Update Status" />
@@ -1260,7 +1768,7 @@ export default function AdminPage() {
                                 <Button
                                   size="sm"
                                   onClick={() => updateOrderStatus(order._id, statusUpdates[order._id])}
-                                  disabled={updatingOrder === order._id || (isShopFilterLocked && adminSession?.shopName && !order.items.some(item => item.shopName === adminSession.shopName))}
+                                  disabled={updatingOrder === order._id || Boolean(isShopFilterLocked && adminSession?.shopName && !order.items.some(item => item.shopName === adminSession.shopName))}
                                   className="flex-1"
                                 >
                                   ✓
@@ -1276,7 +1784,7 @@ export default function AdminPage() {
                                     });
                                     removeFromQueue(order._id);
                                   }}
-                                  disabled={isShopFilterLocked && adminSession?.shopName && !order.items.some(item => item.shopName === adminSession.shopName)}
+                                  disabled={Boolean(isShopFilterLocked && adminSession?.shopName && !order.items.some(item => item.shopName === adminSession.shopName))}
                                   className="flex-1"
                                 >
                                   ✕
@@ -1291,7 +1799,7 @@ export default function AdminPage() {
                                 variant="outline"
                                 onClick={() => simulateRfidScan(order)}
                                 className="w-full border-green-600 text-green-600 hover:bg-green-50"
-                                disabled={isShopFilterLocked && adminSession?.shopName && !order.items.some(item => item.shopName === adminSession.shopName)}
+                                disabled={Boolean(isShopFilterLocked && adminSession?.shopName && !order.items.some(item => item.shopName === adminSession.shopName))}
                               >
                                 <CreditCard className="h-3 w-3 mr-1" />
                                 RFID Pay
@@ -1309,6 +1817,29 @@ export default function AdminPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Order ID Popup - Closable with close button */}
+      {showOrderIdPopup && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 text-center shadow-2xl relative">
+            {/* Close button */}
+            <button
+              onClick={closeOrderIdPopup}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl font-bold"
+              aria-label="Close popup"
+            >
+              ×
+            </button>
+            
+            <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-8">
+              <p className="text-3xl font-black text-yellow-800 tracking-wider">
+                {popupOrderId}
+              </p>
+              <p className="text-sm text-yellow-600 mt-2">Auto-closes in 15 seconds</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

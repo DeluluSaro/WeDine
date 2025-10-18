@@ -31,6 +31,40 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Check if RFID card already exists in rfidCard collection
+      const existingRfidCard = await writeClient.fetch(
+        `*[_type == "rfidCard" && cardId == $cardId][0]`,
+        { cardId: rfidCardId.trim() }
+      );
+
+      let rfidCardDocument = null;
+
+      if (existingRfidCard) {
+        // Update existing RFID card
+        rfidCardDocument = await writeClient
+          .patch(existingRfidCard._id)
+          .set({
+            userEmail: email,
+            studentName: studentName.trim(),
+            isActive: true,
+            isBlocked: false,
+            lastUpdatedAt: new Date().toISOString()
+          })
+          .commit();
+      } else {
+        // Create new RFID card document
+        rfidCardDocument = await writeClient.create({
+          _type: 'rfidCard',
+          cardId: rfidCardId.trim(),
+          userEmail: email,
+          studentName: studentName.trim(),
+          isActive: true,
+          isBlocked: false,
+          createdAt: new Date().toISOString(),
+          lastUpdatedAt: new Date().toISOString()
+        });
+      }
+
       // Update wallet with RFID card information using the document ID
       const walletUpdate = await writeClient
         .patch(existingWallet._id)
@@ -43,12 +77,14 @@ export async function POST(request: NextRequest) {
         .commit();
 
       console.log('Wallet updated with RFID card:', walletUpdate);
+      console.log('RFID card document created/updated:', rfidCardDocument);
 
       return NextResponse.json({
         success: true,
         message: 'RFID card verified and registered successfully!',
         rfidCardId: rfidCardId.trim(),
-        studentName: studentName.trim()
+        studentName: studentName.trim(),
+        rfidCardDocument: rfidCardDocument
       });
 
     } catch (updateError) {

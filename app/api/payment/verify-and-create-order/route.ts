@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { client, writeClient } from '@/sanity/lib/client';
+import { generateOrderId } from '@/lib/orderIdGenerator';
 import crypto from 'crypto';
 
 interface CartItemForBackend {
@@ -172,18 +173,47 @@ export async function POST(req: NextRequest) {
     const createdOrders = [];
     const now = new Date().toISOString();
 
+    // Get user's RFID card ID from their wallet or RFID card record
+    let rfidCardId = null;
+    try {
+      // First try to get from wallet
+      const wallet = await writeClient.fetch(
+        `*[_type == "wallet" && userEmail == $userEmail][0] { rfidCardId }`,
+        { userEmail: userDetails.email }
+      );
+      
+      if (wallet?.rfidCardId) {
+        rfidCardId = wallet.rfidCardId;
+      } else {
+        // Try to get from RFID card collection
+        const rfidCard = await writeClient.fetch(
+          `*[_type == "rfidCard" && userEmail == $userEmail && isActive == true][0] { cardId }`,
+          { userEmail: userDetails.email }
+        );
+        
+        if (rfidCard?.cardId) {
+          rfidCardId = rfidCard.cardId;
+        }
+      }
+    } catch (error) {
+      console.log('Could not fetch RFID card ID for user:', userDetails.email);
+    }
+
     // Create separate orders for each shop
     for (const [shopId, shopOrder] of Object.entries(shopOrders)) {
+      // Generate unique 5-character order ID for each shop
+      const orderId = generateOrderId();
       const timestamp = Date.now();
-      const randomSuffix = Math.random().toString(36).substring(2, 8);
-      const orderIdentifier = `ONLINE-${timestamp}-${shopId.slice(-6)}-${randomSuffix}`;
+      const orderIdentifier = `${orderId}-${timestamp}`;
 
       // Create order document
       const orderDoc = {
         _type: 'order',
         userId: userDetails.userId,
         userEmail: userDetails.email,
+        rfidCardId, // Include RFID card ID if available
         orderIdentifier,
+        shortOrderId: orderId,
         items: shopOrder.items,
         total: shopOrder.total,
         paymentMethod: 'online',
@@ -213,6 +243,7 @@ export async function POST(req: NextRequest) {
       createdOrders.push({
         orderId: createdOrder._id,
         orderIdentifier,
+        shortOrderId: orderId, // Include the 5-character ID
         shopName: shopOrder.shopName,
         total: shopOrder.total,
         items: shopOrder.items

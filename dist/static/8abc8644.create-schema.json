@@ -374,6 +374,12 @@
         "type": "string"
       },
       {
+        "description": "RFID card ID associated with this order for verification and payment",
+        "name": "rfidCardId",
+        "type": "string",
+        "title": "RFID Card ID"
+      },
+      {
         "validation": [
           {
             "rules": [
@@ -389,6 +395,27 @@
         "name": "orderIdentifier",
         "type": "string",
         "title": "Unique Order Identifier"
+      },
+      {
+        "validation": [
+          {
+            "rules": [
+              {
+                "flag": "presence",
+                "constraint": "required"
+              },
+              {
+                "flag": "length",
+                "constraint": 5
+              }
+            ],
+            "level": "error"
+          }
+        ],
+        "description": "5-character order ID for easy user memorization and verification",
+        "name": "shortOrderId",
+        "type": "string",
+        "title": "Short Order ID"
       },
       {
         "validation": [
@@ -632,6 +659,16 @@
         ],
         "name": "updatedAt",
         "type": "datetime"
+      },
+      {
+        "description": "When the order was marked as delivered",
+        "name": "deliveredAt",
+        "type": "datetime"
+      },
+      {
+        "description": "Additional notes from admin (e.g., delivery method, RFID verification)",
+        "name": "adminNotes",
+        "type": "text"
       },
       {
         "initialValue": false,

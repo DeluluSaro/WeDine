@@ -50,7 +50,7 @@ export default function Home() {
     );
   }
 
-  // Don't render the page if not signed in
+  // Don'
   if (!isSignedIn) {
     return null;
   }

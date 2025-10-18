@@ -153,11 +153,24 @@ export const orderType = defineType({
       validation: Rule => Rule.required()
     }),
     defineField({
+      name: "rfidCardId",
+      type: "string",
+      title: "RFID Card ID",
+      description: "RFID card ID associated with this order for verification and payment"
+    }),
+    defineField({
       name: "orderIdentifier",
       type: "string",
       title: "Unique Order Identifier",
       description: "Unique identifier to prevent duplicate orders",
       validation: Rule => Rule.required()
+    }),
+    defineField({
+      name: "shortOrderId",
+      type: "string",
+      title: "Short Order ID",
+      description: "5-character order ID for easy user memorization and verification",
+      validation: Rule => Rule.required().length(5)
     }),
     defineField({
       name: "items",
@@ -230,6 +243,18 @@ export const orderType = defineType({
       type: "datetime", 
       title: "Updated At",
       validation: Rule => Rule.required()
+    }),
+    defineField({
+      name: "deliveredAt",
+      type: "datetime",
+      title: "Delivered At",
+      description: "When the order was marked as delivered"
+    }),
+    defineField({
+      name: "adminNotes",
+      type: "text",
+      title: "Admin Notes",
+      description: "Additional notes from admin (e.g., delivery method, RFID verification)"
     }),
     defineField({
       name: "paymentStatus",
