@@ -1,4 +1,5 @@
 import { defineField, defineType } from 'sanity'
+import React from 'react'
 
 export default defineType({
   name: 'rfidCard',
@@ -98,10 +99,14 @@ export default defineType({
     },
     prepare(selection) {
       const { title, subtitle, media } = selection
+      const getMediaIcon = () => {
+        const emoji = media === 'student' ? '🎓' : media === 'faculty' ? '👨‍🏫' : '💳'
+        return React.createElement('span', { style: { fontSize: '1.5rem' } }, emoji)
+      }
       return {
         title: title || 'Unknown Student',
         subtitle: `Card ID: ${subtitle}`,
-        media: media === 'student' ? '🎓' : media === 'faculty' ? '👨‍🏫' : '💳'
+        media: getMediaIcon()
       }
     }
   }

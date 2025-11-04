@@ -4,8 +4,8 @@
 #include <SPI.h>
 
 // ===== CONFIGURATION =====
-const char* ssid = "Sadha's wifi";
-const char* password = "sadhananthan@";
+const char* ssid = "Saravana";
+const char* password = "1234567890";
 #define FIREBASE_HOST "wedine-1a2a1-default-rtdb.asia-southeast1.firebasedatabase.app"
 #define FIREBASE_AUTH "nfLAZp40wx0U12XXLhcMaPgqvWrbnRXrSarFGjTj"
 const String SHOP_NAME = "Guvi";
